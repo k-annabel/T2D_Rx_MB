@@ -1,0 +1,1492 @@
+---
+title: "MB-T2D-medications-MSc"
+author: Annabel Klemets
+output: html_notebook
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 5, digits = 1)
+#save.image(file = "MB-diabetes-medications-MSc.RData")
+#load("MB-diabetes-medications-MSc.RData")
+```
+
+# Diabeediravimite ja mikrobioomi statistilised analüüsid (Magistritöö protokoll)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidyr)
+library(broom)
+library(purrr)
+library(skimr)
+library(rstatix)
+library(flextable)
+library(officer)
+library(paletteer)
+library(mia)
+library(miaViz)
+library(scater)
+library(patchwork)
+library(ggrepel)
+library(ggsci)
+library(ggpubr)
+library(ggcorrplot)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Load OTU counts (later assays)
+counts <- read.csv("otu_matrix.csv", sep = ";", row.names = 1, check.names = FALSE)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Load metadata (colData)
+samples <- read.csv("metadata.csv", sep = ",", row.names = 1, check.names = TRUE)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Load taxonomy (rowData)
+tax <- read.csv("taxonomy.csv", sep = ";", row.names = 1)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Order OTU counts based on colData (metadata)
+counts <- counts[ , match(rownames(samples), colnames(counts))]
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Convert datasets into right format
+counts <- as.matrix(counts)
+samples <- DataFrame(samples)
+tax <- DataFrame(tax)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Add counts to a SimpleList
+assays <- SimpleList(counts = counts)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Create a TSE
+tse <- TreeSummarizedExperiment(assays = assays,
+                                colData = samples,
+                                rowData = tax)
+#dim(tse) - 12420 x 81
+#dim(colData(tse)) - 81 x 11
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Remove Mock, Negative, and S70 samples
+tse_diabetes_no_mock_neg <- tse[ , !colData(tse)$PatientID %in% c("NEG-Valida", "Pos", "S70", "AL")]
+#dim(colData(tse_diabetes_no_mock_neg)) - 77 x 62
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+#Remove samples with very low reads count - GLP1RA-6-2 and GLP1RA-5-1, GLP1RA-5-2, GLP1RA-5-3, GLP1RA-5-4
+tse_diabetes <- tse_diabetes_no_mock_neg[ , !colnames(tse_diabetes_no_mock_neg) %in% c("GLP1RA-5-2", "GLP1RA-5-3", "GLP1RA-5-4", "GLP1RA-6-2")]
+# IMPORTANT: GLP1RA-5-1 was already missing the bioinformatic analysis with QIIME2
+# dim(colData(tse_diabetes)) - 73 x 62
+```
+
+## Uuringu valim ja proovid
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+proovid <- read.csv("Uuringu proovid - flextable.csv", sep = ",")
+View(proovid)
+#Creating a Flextable - allows more customization
+proovid <- flextable(proovid)
+std_border = fp_border(color = "grey", width = 1)
+
+
+proovid <- proovid %>% 
+  flextable::border_remove() %>% 
+  flextable::merge_at(i = 1, j = 3:6, part = "header") %>% 
+  flextable::align(align = "center", part = "all") %>% 
+  flextable::merge_at(i = 2:3, j = 1:1, part = "body") %>% 
+  flextable::merge_at(i = 4:5, j = 1:1, part = "body") %>% 
+  flextable::merge_at(i = 6:6, j = 1:2, part = "body") %>% 
+  flextable::set_header_labels(Sugu = "", 
+                               Ravim = "", 
+                               Kokku = "") %>% 
+  flextable::border_inner_h(part="all", border = std_border) %>% 
+  flextable::set_table_properties(width = 0.75, layout = "autofit")
+proovid
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+valim <- read.csv("Uuringu valimi tabelid (04.01.23).csv", sep = ",", check.names = FALSE)
+valim$Sample <- as.character(valim$Sample)
+
+#Combine PatientID and Gender as one label and prevent alphabetical ordering of PatientIDs
+valim <- valim %>% 
+  mutate(Gender2 = case_when(Gender == "Female" ~ "(N)", 
+                             TRUE ~ "(M)"))
+valim$PatientID2 <- paste(valim$PatientID, valim$Gender2)
+valim$PatientID2 <- factor(valim$PatientID2, levels = unique(valim$PatientID2), ordered = TRUE)
+
+valim_plot <- valim %>% 
+  ggplot(aes(x = Timepoint, y = PatientID2)) +
+  geom_point(aes(color = Sample, shape = Sample)) +
+  scale_y_discrete(limits=rev) +
+  scale_shape_manual(values = c(1, 16)) +
+  scale_color_paletteer_d("calecopal::conifer") +
+  scale_x_discrete(position = "top") +
+  xlab("Ajapunkt") +
+  ylab("Uuritav (N = 20)") +
+  guides(color = guide_legend(title = "Proov olemas?", override.aes = list(shape = c(1, 16))), shape = "none")
+valim_plot
+```
+
+Uuringu valimi moodustasid `r length(unique(tse_diabetes$PatientID))` patsienti (10 naist ja 10 meest). 
+
+Analüüsi kaasatud esialgne proovide arv oli `r length(colnames(tse_diabetes_no_mock_neg))`, viis proovi (GLP1RA-5-1, GLP1RA-5-2, GLP1RA-5-3, GLP1RA-5-4 ja GLP1RA-6-2) jäid edasisest analüüsist välja väga väikese lugemite arvu tõttu. Seega on lõplik analüüsitavate proovide arv `r length(colnames(tse_diabetes))`. 
+
+## Proovide üldised ja sekveneerimisandmed
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+#Lugemite arv kõikides proovides (tse)
+tse_diabetes <- addPerCellQC(tse_diabetes)
+diabetes_library_summary <- summary(tse_diabetes)
+diabetes_library_summary <- as_tibble(diabetes_library_summary)
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+#Lugemite arv erinevaid ravimeid võtnud patsientide proovides (GLP-1-RA ja SGLT-2)
+tse_diabetes_GLP <- tse_diabetes[ , tse_diabetes@colData$Medication %in% ("GLP-1-RA")]
+library_summary_GLP <- summary(tse_diabetes_GLP)
+library_summary_GLP <- as_tibble(library_summary_GLP)
+
+tse_diabetes_SGLT <- tse_diabetes[ , tse_diabetes@colData$Medication %in% ("SGLT-2")]
+library_summary_SGLT <- summary(tse_diabetes_SGLT)
+library_summary_SGLT <- as_tibble(library_summary_SGLT)
+
+```
+
+**Uuritavates proovides** leidus `r diabetes_library_summary$samples$total_counts` lugemit. Suurim lugemite arv ühes proovis on `r diabetes_library_summary$samples$max_counts` ja vähim on `r diabetes_library_summary$samples$min_counts`. Keskmine lugemite arv ühes proovis on `r diabetes_library_summary$samples$mean_counts` ja mediaan on `r diabetes_library_summary$samples$median_counts` (SD `r diabetes_library_summary$samples$stdev_counts`). Proovides leidus kokku OTU-sid `r diabetes_library_summary$features$total` ja ühes proovis keskmiselt `r diabetes_library_summary$features$per_sample_avg` OTU-d. 
+
+**GLP-1 retseptori agonisti võtnud patsientide proovides** leidus kokku `r library_summary_GLP$samples$total_counts` lugemit. Suurim lugemite arv ühes proovis on `r library_summary_GLP$samples$max_counts` ja vähim arv on `r library_summary_GLP$samples$min_counts`. Keskmine lugemite arv ühes proovis on `r library_summary_GLP$samples$mean_counts` ja mediaan on `r library_summary_GLP$samples$median_counts` (SD `r library_summary_GLP$samples$stdev_counts`). Proovides leidus kokku OTU-sid `r library_summary_GLP$features$total` ja ühes proovis keskmiselt `r library_summary_GLP$features$per_sample_avg` OTU-d.
+
+**SGLT-2 inhibiitorit võtnud patsientide proovides** leidus kokku `r library_summary_SGLT$samples$total_counts` lugemit. Suurim lugemite arv ühes proovis on `r library_summary_SGLT$samples$max_counts` ja vähim arv on `r library_summary_SGLT$samples$min_counts`. Keskmine lugemite arv ühes proovis on `r library_summary_SGLT$samples$mean_counts` ja mediaan on `r library_summary_SGLT$samples$median_counts` (SD `r library_summary_SGLT$samples$stdev_counts`). Proovides leidus kokku OTU-sid `r library_summary_SGLT$features$total` ja ühes proovis keskmiselt `r library_summary_SGLT$features$per_sample_avg` OTU-d.
+
+## Proovide taksonoomia, sagedasemad hõimkonnad ja perekonnad
+
+Proovides leidus kokku `r length(unique(rownames(tse_diabetes)))` erinevat taksonit. Erinevaid hõimkondi oli kokku `r length(getUniqueTaxa(tse_diabetes, rank = "Phylum"))`, klasse `r length(getUniqueTaxa(tse_diabetes, rank = "Class"))`, seltse `r length(getUniqueTaxa(tse_diabetes, rank = "Order"))`, sugukondi `r length(getUniqueTaxa(tse_diabetes, rank = "Family"))` ning perekondi `r length(getUniqueTaxa(tse_diabetes, rank = "Genus"))`. 
+
+**GLP-1 retseptori agonisti võtnud patsientide proovides** leidus kokku `r length(unique(rownames(tse_diabetes_GLP)))` erinevat taksonit. Erinevaid hõimkondi oli kokku `r length(getUniqueTaxa(tse_diabetes_GLP, rank = "Phylum"))`, klasse `r length(getUniqueTaxa(tse_diabetes_GLP, rank = "Class"))`, seltse `r length(getUniqueTaxa(tse_diabetes_GLP, rank = "Order"))`, sugukondi `r length(getUniqueTaxa(tse_diabetes_GLP, rank = "Family"))` ning perekondi `r length(getUniqueTaxa(tse_diabetes_GLP, rank = "Genus"))`.  
+
+**SGLT-2 inhibiitorit võtnud patsientide proovides** leidus kokku `r length(unique(rownames(tse_diabetes_SGLT)))` erinevat taksonit. Erinevaid hõimkondi oli kokku `r length(getUniqueTaxa(tse_diabetes_SGLT, rank = "Phylum"))`, klasse `r length(getUniqueTaxa(tse_diabetes_SGLT, rank = "Class"))`, seltse `r length(getUniqueTaxa(tse_diabetes_SGLT, rank = "Order"))`, sugukondi `r length(getUniqueTaxa(tse_diabetes_SGLT, rank = "Family"))` ning perekondi `r length(getUniqueTaxa(tse_diabetes_SGLT, rank = "Genus"))`. 
+
+
+## Diabeediravimite (GLP1-RA ja SGLT2-i) mõju soolestiku mikrobioomi mitmekesisusele
+### Sagedasemad perekonnad GLP1-RA ja SGLT2-i võtnud patsientide proovides erinevates ajapunktides
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+#Add counts as relative abundance and clr
+tse_diabetes <- mia::transformCounts(tse_diabetes, 
+                                     abund_values = "counts", 
+                                     method = "relabundance")
+
+tse_diabetes <- mia::transformCounts(tse_diabetes, 
+                                     abund_values = "relabundance", 
+                                     method = "clr", 
+                                     pseudocount = 1)
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+# Data preparation
+tse_genus <- mia::agglomerateByRank(tse_diabetes, rank = "Genus", onRankOnly = TRUE)
+rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
+rownames(tse_genus) <- sub("Family:", "", rownames(tse_genus))
+
+top_genera <- mia::getTopTaxa(tse_genus, top = 10, assay_name = "relabundance")
+
+# Rename other genera as "Other"
+genus_renamed <- lapply(rowData(tse_genus)$Genus,
+                       function(x){if (x %in% top_genera) {x} else {"Other"}})
+
+# Add renamed genera to agglomerated TSE
+rowData(tse_genus)$Genus <- as.character(genus_renamed)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+# GLP-1-RA
+tse_genus_glp <- tse_genus[ , tse_genus$Medication %in% c("GLP-1-RA")]
+
+top_genera_plot_glp <- miaViz::plotAbundance(tse_genus_glp, 
+                                          rank = "Genus",
+                                          assay_name = "relabundance", 
+                                          order_rank_by = "abund", 
+                                          one_facet = FALSE)
+
+top_genera_glp_data <- as.data.frame(top_genera_plot_glp$data)
+
+top_genera_glp_data <- top_genera_glp_data %>%
+  mutate(Timepoint = case_when(
+    grepl("-1$", X) ~ "I",
+    grepl("-2$", X) ~ "II",
+    grepl("-3$", X) ~ "III",
+    grepl("-4$", X) ~ "IV",
+    TRUE ~ NA
+  )) %>% 
+  mutate(Timepoint2 = recode(Timepoint, 
+                             "I" = "I (Algus)", 
+                             "II" = "II (1 kuu)", 
+                             "III" = "II (3 kuud)", 
+                             "IV" = "III (12 kuud)")) %>%
+  rename("X" = "SampleID") %>% 
+  group_by(SampleID, colour_by, Timepoint2, Y) %>%
+  summarize(total_abundance = sum(Y),
+            rel_abundance = total_abundance/length(unique(top_genera_glp_data$SampleID)))
+
+top_genera_glp_wrap <- top_genera_glp_data %>% 
+  ggplot(aes(x = SampleID, y = total_abundance, fill = colour_by)) +
+  geom_col() +
+  facet_grid(.~Timepoint2, scales = "free_x") +
+  scale_fill_paletteer_d("ggthemes::Tableau_10") +
+  scale_y_continuous(expand = c(0,0), labels = scales::percent) +
+  theme(legend.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  coord_cartesian(ylim=c(0,1)) +
+  #scale_x_discrete(breaks = NULL) + 
+  labs(x = "",
+       y = "Suhteline esinemissagedus (%)", 
+       fill = "Perekond") +
+  ggtitle("GLP1-RA")
+#ggthemes::ggthemes_data$tableau$`color-palettes`$regular$`Tableau 10`
+#Perekond - Other ("#4E79A7"), Bacteroides ("#F28E2B"), Prevotella 9 ("#E15759"), 
+#Faecaelibacterium ("#76B7B2"), Collinsella ("#59A14F"), Lactobacillus ("#EDC948"), 
+#Blautia ("#B07AA1"), Holdemanella ("#FF9DA7"), Streptococcus ("#9C755F"), Agathobacter ("#BAB0AC")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+# SGLT-2
+tse_genus_sglt <- tse_genus[ , tse_genus$Medication %in% c("SGLT-2")]
+
+top_genera_plot_sglt <- miaViz::plotAbundance(tse_genus_sglt, 
+  rank = "Genus",
+  assay_name = "relabundance", 
+  order_rank_by = "abund", 
+  one_facet = FALSE)
+
+top_genera_sglt_data <- as.data.frame(top_genera_plot_sglt$data)
+
+top_genera_sglt_data <- top_genera_sglt_data %>%
+  mutate(Timepoint = case_when(
+    grepl("-1$", X) ~ "I",
+    grepl("-2$", X) ~ "II",
+    grepl("-3$", X) ~ "III",
+    grepl("-4$", X) ~ "IV",
+    TRUE ~ NA
+  )) %>% 
+  mutate(Timepoint2 = recode(Timepoint, 
+                             "I" = "I (Algus)", 
+                             "II" = "II (1 kuu)", 
+                             "III" = "II (3 kuud)", 
+                             "IV" = "III (12 kuud)")) %>% 
+  rename("X" = "SampleID") %>% 
+  group_by(SampleID, colour_by, Timepoint2, Y) %>%
+  summarize(total_abundance = sum(Y),
+            rel_abundance = total_abundance/length(unique(top_genera_sglt_data$SampleID)))
+
+tableau10_sglt <- c("#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#9C755F", 
+                             "#59A14F", "#FF9DA7", "#B07AA1", "#BAB0AC", "#EDC948")
+
+top_genera_sglt_wrap <- top_genera_sglt_data %>% 
+  ggplot(aes(x = SampleID, y = total_abundance, fill = colour_by)) +
+  geom_col() +
+  facet_grid(.~Timepoint2, scales = "free_x") +
+  scale_fill_manual(values = tableau10_sglt) +
+  scale_y_continuous(expand = c(0,0), labels = scales::percent) +
+  theme(legend.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  coord_cartesian(ylim=c(0,1)) +
+  #scale_x_discrete(labels = NULL, breaks = NULL) + 
+  labs(x = "",
+       y = "Suhteline esinemissagedus (%)",
+       fill = "Perekond") +
+  ggtitle("SGLT-2")
+#ggthemes::ggthemes_data$tableau$`color-palettes`$regular$`Tableau 10`
+
+#Perekond - Other ("#4E79A7"), Bacteroides ("#F28E2B"), Prevotella 9 ("#E15759"), 
+#Faecaelibacterium ("#76B7B2"), Streptococcus ("#9C755F"), Collinsella ("#59A14F"), 
+#Holdemanella ("#FF9DA7"), Blautia ("#B07AA1"), Agathobacter ("#BAB0AC"), Lactobacillus ("#EDC948")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+ggpubr::ggarrange(top_genera_glp_wrap, top_genera_sglt_wrap, nrow = 2, common.legend = TRUE, legend = "right")
+```
+
+### Alfamitmekesisus ja beetamitmekesisus (*Alpha-diversity* & *Beta-diversity*)
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Estimate alpha diversity values
+tse_genus <- mia::estimateDiversity(tse_genus, 
+                                   abund_values = "counts", 
+                                   index = "shannon", 
+                                   name = "shannon")
+
+tse_genus <- mia::estimateEvenness(tse_genus, 
+                                   abund_values = "counts", 
+                                   index = "pielou",
+                                   name = "pielou")
+
+tse_genus <- mia::estimateRichness(tse_genus, 
+                                   abund_values = "counts",
+                                   index = "observed", 
+                                   name = "observed")
+
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Extract CLR-transformed abundance values for top genera per sample
+tse_clr <- as.data.frame(assay(tse_genus, "clr"))
+
+# Extract metadata with alpha diversity indices
+tse_samples <- as.data.frame(colData(tse_genus))
+
+# Perform PCA 
+pcaAll <- prcomp(t(tse_clr))
+
+# Combine PCs with metadata and alpha diversity
+alpha_beta_raw <- data.frame(pcaAll$x[ , 1:5],
+                             tse_samples)
+
+```
+
+### Alfamitmekesisus
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Data transformation for alpha diversity 
+alpha_test_raw <- alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(7:9, 22:24)) %>% 
+  pivot_longer(cols = c("shannon", "observed", "pielou"), 
+               names_to = "alpha_div", 
+               values_to = "value") %>% 
+  mutate(alpha_div = recode(alpha_div, 
+                            "shannon" = "Shannon",
+                            "pielou" = "Pielou"))
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+# Create lists for filtering by medication 
+glp_patients_alpha <- alpha_test_raw %>% 
+  filter(Medication == "GLP-1-RA") %>% 
+  pull(PatientID)
+
+sglt_patients_alpha <- alpha_test_raw %>% 
+  filter(Medication == "SGLT-2") %>% 
+  pull(PatientID)
+
+# Vectors for matrices
+timepoints <- c("II", "III", "IV")
+alpha_div <- c("Shannon", "Pielou", "Observed")
+
+# Initialize empty vectors for results
+alpha_results_glp <- matrix(nrow = length(alpha_div),
+                       ncol = length(timepoints))
+
+rownames(alpha_results_glp) <- alpha_div
+colnames(alpha_results_glp) <- timepoints
+
+alpha_results_sglt <- matrix(nrow = length(alpha_div),
+                       ncol = length(timepoints))
+
+rownames(alpha_results_sglt) <- alpha_div
+colnames(alpha_results_sglt) <- timepoints
+
+# Perform the for-loop
+for (j in 1:length(alpha_div)){
+  
+  temp_alpha <- alpha_test_raw %>% 
+    filter(alpha_div == alpha_div[j])
+  
+    for (i in 1:length(timepoints)){
+      alpha_test <- temp_alpha %>% 
+        filter(Timepoint %in% c("I", timepoints[i])) %>% 
+        group_by(PatientID) %>% 
+        filter(n() != 1) %>% 
+        arrange(Timepoint, PatientID) %>% 
+        ungroup()
+      
+      #GLP-1-RA
+      alpha_test_glp <- alpha_test %>% 
+        filter(PatientID %in% glp_patients_alpha)
+      
+      test_glp <- t.test(value ~ Timepoint, data = alpha_test_glp, paired = TRUE)
+      
+      #alpha_results_glp[alpha_div[j], timepoints[i]] <- test_glp$estimate
+      alpha_results_glp[alpha_div[j], timepoints[i]] <- test_glp$p.value
+      
+      #SGLT-2
+      alpha_test_sglt <- alpha_test %>% 
+        filter(PatientID %in% sglt_patients_alpha)
+      
+      test_sglt <- t.test(value ~ Timepoint, data = alpha_test_sglt, paired = TRUE)
+      
+      #alpha_results_sglt[alpha_div[j], timepoints[i]] <- test_sglt$estimate
+      alpha_results_sglt[alpha_div[j], timepoints[i]] <- test_sglt$p.value
+      
+      #combined_alpha_estimate <- cbind(alpha_results_glp, alpha_results_sglt)
+      combined_alpha_pvalue <- cbind(alpha_results_glp, alpha_results_sglt)
+    }
+}
+
+alpha_test_results <- cbind(combined_alpha_estimate, combined_alpha_pvalue)
+colnames(alpha_test_results) <- c("GLP_II_estimate", "III_estimate", "IV_estimate",
+                               "SGLT2_II_estimate", "S_III_estimate", "S_IV_estimate",
+                               "GLP_II_pvalue", "III_pvalue", "IV_pvalue", 
+                               "SGLT2_II_pvalue", "S_III_pvalue", "S_IV_pvalue")
+
+alpha_results_tibble_raw <- as_tibble(alpha_test_results, rownames = NA)
+
+alpha_results_tibble <- alpha_results_tibble_raw %>% 
+  rownames_to_column(var = "Alpha") %>% 
+  mutate(GLP_II_pvalue_b = GLP_II_pvalue * 9,
+         III_pvalue_b = III_pvalue * 9, 
+         IV_pvalue_b = IV_pvalue * 9, 
+         SGLT2_II_pvalue_b = SGLT2_II_pvalue * 9, 
+         S_III_pvalue_b = S_III_pvalue * 9, 
+         S_IV_pvalue_b = S_IV_pvalue * 9)
+
+#0.05 / 9 = 0.006
+#alpha_results_tibble %>% print(width = Inf)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+alpha_plot <- alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(SampleID, PatientID, Timepoint, Medication, shannon, pielou, observed) %>% 
+  pivot_longer(cols = c("shannon", "observed", "pielou"), 
+               names_to = "alpha_div", 
+               values_to = "value") %>% 
+  select(-SampleID) %>% 
+  pivot_wider(names_from = Timepoint, values_from = value) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value") %>% 
+  relocate(Timepoint, .before = alpha_div) %>% 
+  mutate(alpha_div = recode(alpha_div, 
+                            "shannon" = "Shannoni mitmekesisus",
+                            "pielou" = "Pielou tihedus (evenness)", 
+                            "observed" = "Vaadeldud perekonnad"
+                            ))
+
+glp_alpha_plot <- alpha_plot %>% 
+  filter(Medication == "GLP-1-RA")
+
+sglt_alpha_plot <- alpha_plot %>% 
+  filter(Medication == "SGLT-2")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_shannon_plot <- glp_alpha_plot %>% 
+  filter(alpha_div == "Shannoni mitmekesisus") %>%
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.8, label = "ns") +
+  annotate("text", x = 2, y = 0.8, label = "ns") +
+  annotate("text", x = 3, y = 0.8, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_pielou_plot <- glp_alpha_plot %>% 
+  filter(alpha_div == "Pielou tihedus (evenness)") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~alpha_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.15, label = "ns") +
+  annotate("text", x = 2, y = 0.15, label = "ns") +
+  annotate("text", x = 3, y = 0.15, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_observed_plot <- glp_alpha_plot %>% 
+  filter(alpha_div == "Vaadeldud perekonnad") %>% 
+  na.omit() %>%
+  group_by(chg) %>%
+  ggplot(aes(x = chg, y = chg_value)) + 
+  facet_grid(.~alpha_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 50, label = "ns") +
+  annotate("text", x = 2, y = 50, label = "ns") +
+  annotate("text", x = 3, y = 50, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_shannon_plot <- sglt_alpha_plot %>% 
+  filter(alpha_div == "Shannoni mitmekesisus") %>%
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.8, label = "ns") +
+  annotate("text", x = 2, y = 0.8, label = "ns") +
+  annotate("text", x = 3, y = 0.8, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_pielou_plot <- sglt_alpha_plot %>% 
+  filter(alpha_div == "Pielou tihedus (evenness)") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~alpha_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.15, label = "ns") +
+  annotate("text", x = 2, y = 0.15, label = "ns") +
+  annotate("text", x = 3, y = 0.15, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_observed_plot <- sglt_alpha_plot %>% 
+  filter(alpha_div == "Vaadeldud perekonnad") %>% 
+  na.omit() %>%
+  group_by(chg) %>%
+  ggplot(aes(x = chg, y = chg_value)) + 
+  facet_grid(.~alpha_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 20, label = "ns") +
+  annotate("text", x = 2, y = 20, label = "ns") +
+  annotate("text", x = 3, y = 20, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+common_alpha <- ggpubr::ggarrange(glp_shannon_plot, glp_pielou_plot, glp_observed_plot, 
+                  sglt_shannon_plot, sglt_pielou_plot, sglt_observed_plot, 
+                  ncol = 3, nrow = 2, common.legend = TRUE, legend = "right")
+
+
+annotate_figure(common_alpha, top = "A - GLP-1 retseptori agonist", bottom = "B - SGLT-2 inhibiitor")
+```
+
+### Beetamitmekesisus (*Beta-diversity*)
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Data transformation for beta diversity
+beta_test_raw <- alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  mutate(Medication = colData(tse_genus)$Medication) %>% 
+  select(2:9) %>% 
+  pivot_longer(cols = c("PC1", "PC2", "PC3", "PC4", "PC5"), 
+                      names_to = "PC", 
+                      values_to = "Value") %>% 
+  pivot_wider(names_from = "Timepoint", 
+                     values_from = "value")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+# Create lists for filtering by medication 
+glp_patients_beta <- beta_test_raw %>% 
+  filter(Medication == "GLP-1-RA") %>% 
+  pull(PatientID)
+
+sglt_patients_beta <- beta_test_raw %>% 
+  filter(Medication == "SGLT-2") %>% 
+  pull(PatientID)
+
+# Vectors for matrices
+#timepoints <- c("II_e", "II_p", "III_e", "III_p", "IV_e", "IV_p")
+timepoints <- c("II", "III", "IV")
+beta_div <- c("PC1", "PC2", "PC3", "PC4", "PC5")
+
+# Initialize empty vectors for results
+beta_results_glp <- matrix(nrow = length(beta_div),
+                       ncol = length(timepoints))
+
+rownames(beta_results_glp) <- beta_div
+colnames(beta_results_glp) <- timepoints
+
+beta_results_sglt <- matrix(nrow = length(beta_div),
+                       ncol = length(timepoints))
+
+rownames(beta_results_sglt) <- beta_div
+colnames(beta_results_sglt) <- timepoints
+
+# Perform the for-loop
+for (j in 1:length(beta_div)){
+  
+  temp_beta <- beta_test_raw %>% 
+    filter(PC == beta_div[j])
+  
+    for (i in 1:length(timepoints)){
+      beta_test <- temp_beta %>% 
+        filter(Timepoint %in% c("I", timepoints[i])) %>% 
+        group_by(PatientID) %>% 
+        filter(n() != 1) %>% 
+        arrange(Timepoint, PatientID) %>% 
+        ungroup()
+      
+      #results[beta_div[j], timepoints[i]] <- test$p.value
+      
+      #GLP-1-RA
+      beta_test_glp <- beta_test %>% 
+        filter(PatientID %in% glp_patients_beta)
+      
+      test_glp <- t.test(Value ~ Timepoint, data = beta_test_glp, paired = TRUE)
+      
+      #beta_results_glp[beta_div[j], timepoints[i]] <- test_glp$estimate
+      beta_results_glp[beta_div[j], timepoints[i]] <- test_glp$p.value
+      
+      #SGLT-2
+      beta_test_sglt <- beta_test %>% 
+        filter(PatientID %in% sglt_patients_beta)
+      
+      test_sglt <- t.test(Value ~ Timepoint, data = beta_test_sglt, paired = TRUE)
+      
+      #beta_results_sglt[beta_div[j], timepoints[i]] <- test_sglt$estimate
+      beta_results_sglt[beta_div[j], timepoints[i]] <- test_sglt$p.value
+      
+      #combined_beta_estimate <- cbind(beta_results_glp, beta_results_sglt)
+      combined_beta_pvalue <- cbind(beta_results_glp, beta_results_sglt)
+    }
+}
+
+beta_test_results <- cbind(combined_beta_estimate, combined_beta_pvalue)
+
+colnames(beta_test_results) <- c("GLP_II_estimate", "III_estimate", "IV_estimate",
+                               "SGLT2_II_estimate", "S_III_estimate", "S_IV_estimate",
+                               "GLP_II_pvalue", "III_pvalue", "IV_pvalue", 
+                               "SGLT2_II_pvalue", "S_III_pvalue", "S_IV_pvalue")
+
+beta_results_tibble_raw <- as_tibble(beta_test_results, rownames = NA)
+
+beta_results_tibble <- beta_results_tibble_raw %>% 
+  rownames_to_column(var = "PC") %>% 
+  mutate(GLP_II_pvalue_b = GLP_II_pvalue * 15,
+         III_pvalue_b = III_pvalue * 15, 
+         IV_pvalue_b = IV_pvalue * 15, 
+         SGLT2_II_pvalue_b = SGLT2_II_pvalue * 15, 
+         S_III_pvalue_b = S_III_pvalue * 15, 
+         S_IV_pvalue_b = S_IV_pvalue * 15)
+
+#0.05 / 15 = 0.003
+#beta_results_tibble %>% print(width = Inf)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+beta_plot <- alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(1:6, 7:9) %>% 
+  pivot_longer(cols = c("PC1", "PC2", "PC3", "PC4", "PC5"), 
+               names_to = "beta_div", 
+               values_to = "value") %>% 
+  select(-SampleID) %>% 
+  pivot_wider(names_from = Timepoint, values_from = value) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value") %>% 
+  relocate(Timepoint, .before = beta_div)
+
+glp_beta_plot <- beta_plot %>% 
+  filter(Medication == "GLP-1-RA")
+
+sglt_beta_plot <- beta_plot %>% 
+  filter(Medication == "SGLT-2")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_pc1_plot <- glp_beta_plot %>% 
+  filter(beta_div == "PC1") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.35, label = "ns") +
+  annotate("text", x = 2, y = 0.35, label = "ns") +
+  annotate("text", x = 3, y = 0.35, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_pc2_plot <- glp_beta_plot %>% 
+  filter(beta_div == "PC2") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.15, label = "ns") +
+  annotate("text", x = 2, y = 0.15, label = "ns") +
+  annotate("text", x = 3, y = 0.15, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_pc3_plot <- glp_beta_plot %>% 
+  filter(beta_div == "PC3") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.10, label = "ns") +
+  annotate("text", x = 2, y = 0.10, label = "ns") +
+  annotate("text", x = 3, y = 0.10, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_pc4_plot <- glp_beta_plot %>% 
+  filter(beta_div == "PC4") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.15, label = "ns") +
+  annotate("text", x = 2, y = 0.15, label = "ns") +
+  annotate("text", x = 3, y = 0.15, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+glp_pc5_plot <- glp_beta_plot %>% 
+  filter(beta_div == "PC5") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.15, label = "ns") +
+  annotate("text", x = 2, y = 0.15, label = "ns") +
+  annotate("text", x = 3, y = 0.15, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_pc1_plot <- sglt_beta_plot %>% 
+  filter(beta_div == "PC1") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.25, label = "ns") +
+  annotate("text", x = 2, y = 0.25, label = "ns") +
+  annotate("text", x = 3, y = 0.25, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_pc2_plot <- sglt_beta_plot %>% 
+  filter(beta_div == "PC2") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.10, label = "ns") +
+  annotate("text", x = 2, y = 0.10, label = "ns") +
+  annotate("text", x = 3, y = 0.10, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_pc3_plot <- sglt_beta_plot %>% 
+  filter(beta_div == "PC3") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.15, label = "ns") +
+  annotate("text", x = 2, y = 0.15, label = "ns") +
+  annotate("text", x = 3, y = 0.15, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_pc4_plot <- sglt_beta_plot %>% 
+  filter(beta_div == "PC4") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.08, label = "ns") +
+  annotate("text", x = 2, y = 0.08, label = "ns") +
+  annotate("text", x = 3, y = 0.08, label = "ns")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+sglt_pc5_plot <- sglt_beta_plot %>% 
+  filter(beta_div == "PC5") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(.~beta_div) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Ajapunktide vaheline muutus", 
+       y = "") +
+  scale_x_discrete(labels = c("I-II", "I-III", "I-IV")) +
+  annotate("text", x = 1, y = 0.10, label = "ns") +
+  annotate("text", x = 2, y = 0.10, label = "ns") +
+  annotate("text", x = 3, y = 0.10, label = "p = 0.02")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+common_beta <- ggpubr::ggarrange(glp_pc1_plot, glp_pc2_plot, glp_pc3_plot, glp_pc4_plot, glp_pc5_plot, 
+                  sglt_pc1_plot, sglt_pc2_plot, sglt_pc3_plot, sglt_pc4_plot, sglt_pc5_plot, 
+                  ncol = 5, nrow = 2, common.legend = TRUE, legend = "right")
+
+
+annotate_figure(common_beta, top = "A - GLP-1 retseptori agonist", bottom = "B - SGLT-2 inhibiitor")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+tse_clr <- as.data.frame(assay(tse_genus, "clr"))
+tse_samples <- as.data.frame(colData(tse_genus))
+
+# Perform PCA
+pcaAll <- prcomp(t(tse_clr))
+
+# Combine PCA results and parameters with metadata
+pca_data_all <- data.frame(pcaAll$x[ ,1:5],
+                           tse_samples)
+
+# Separate data by medication
+pca_data_glp <- pca_data_all %>% 
+  filter(Medication == "GLP-1-RA")
+
+pca_data_sglt <- pca_data_all %>% 
+  filter(Medication == "SGLT-2")
+
+# Visualize PCA data
+
+pca_plot_glp <- pca_data_glp %>% 
+  ggplot(aes(x = PC1, y = PC2, color = Timepoint, label = PatientID, size = 3, shape = Timepoint)) + 
+  geom_point(size = 3, stroke = 3) + 
+  geom_text_repel(size = 2, arrow = arrow(length = unit(0.005, "npc"), ends = "last", type = "closed"),
+                  color = "gray30", max.overlaps = 30) +
+  labs(x = "PC1", y = "PC2", color = "Ajapunkt", shape = "Ajapunkt") +
+  theme_bw() +
+  ggtitle("GLP-1-RA")
+pca_plot_glp
+
+pca_plot_sglt <- pca_data_sglt %>% 
+  ggplot(aes(x = PC1, y = PC2, color = Timepoint, label = PatientID, size = 3, shape = Timepoint)) + 
+  geom_point(size = 3, stroke = 3) + 
+  geom_text_repel(size = 2, arrow = arrow(length = unit(0.005, "npc"), ends = "last", type = "closed"),
+                  color = "gray30", max.overlaps = 30) +
+  labs(x = "PC1", y = "PC2", color = "Ajapunkt", shape = "Ajapunkt") +
+  theme_bw() +
+  ggtitle("SGLT-2")
+pca_plot_sglt
+```
+
+
+### Top 30-40 bakteriperekondade esinemissageduse muutused ajapunktides 
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Filter genera by prevalence (present in ≥5 patients out of 20)
+## Prevalence describes in how many samples certain microbes were detected
+prevalent_genera_clr <- mia::getPrevalentTaxa(tse_genus, 
+                                           assay.type = "clr", 
+                                           detection = 0, 
+                                           prevalence = 5/20, 
+                                           sort = TRUE)
+#length(prevalent_genera_clr) - 134
+
+# Transform relative abundance data to data frame
+genera_comparisons_raw <- as.data.frame(assay(tse_genus, "clr"))
+
+# Extract SampleIDs
+sample_names <- colnames(genera_comparisons_raw)
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Clean and transform relative abundance data corresponding to 340 most prevalent genera
+genera_comparisons_cleaned <- genera_comparisons_raw %>% 
+  rownames_to_column(var = "Genus") %>% 
+  filter(Genus %in% prevalent_genera_clr) %>% 
+  pivot_longer(cols = sample_names, 
+                      names_to = "SampleID", 
+                      values_to = "CLR") %>% 
+  select(SampleID, Genus, CLR) %>% 
+  mutate(Timepoint = str_extract(SampleID, "(\\d+)$")) %>% 
+  mutate(Timepoint = recode(Timepoint, 
+                            "1" = "I", 
+                            "2" = "II", 
+                            "3" = "III", 
+                            "4" = "IV")) %>% 
+  mutate(PatientID = str_extract(SampleID, "GLP1RA-\\d+")) %>% 
+  relocate(PatientID, .before = "SampleID") %>% 
+  mutate(Medication = alpha_beta_raw$Medication[match(PatientID, alpha_beta_raw$PatientID)]) %>% 
+  select(-SampleID)
+
+# Create lists for filtering by medication 
+glp_patients_genus <- genera_comparisons_cleaned %>% 
+  filter(Medication == "GLP-1-RA") %>% 
+  pull(PatientID)
+
+sglt_patients_genus <- genera_comparisons_cleaned %>% 
+  filter(Medication == "SGLT-2") %>% 
+  pull(PatientID)
+
+# Initialize empty vector for results
+results_matrix <- c()
+
+#prevalent_genera_clr - vektor olemas
+timepoints <- c("II", "III", "IV")
+
+results_glp <- matrix(nrow = length(prevalent_genera_clr),
+                      ncol = length(timepoints))
+rownames(results_glp) <- prevalent_genera_clr
+colnames(results_glp) <- timepoints
+
+results_sglt <- matrix(nrow = length(prevalent_genera_clr),
+                       ncol = length(timepoints))
+rownames(results_sglt) <- prevalent_genera_clr
+colnames(results_sglt) <- timepoints
+
+for (j in 1:length(prevalent_genera_clr)){
+  
+  temp_data <- genera_comparisons_cleaned %>% 
+    filter(Genus == prevalent_genera_clr[j])
+  
+    for (i in 1:length(timepoints)){
+      df_test <- temp_data %>% 
+        filter(Timepoint %in% c("I", timepoints[i])) %>% 
+        group_by(PatientID) %>% 
+        filter(n() != 1) %>% 
+        arrange(Timepoint, PatientID) %>% 
+        ungroup()
+      
+      #GLP-1-RA
+      df_glp <- df_test %>% 
+        filter(PatientID %in% glp_patients_genus)
+      
+      test_glp <- t.test(CLR ~ Timepoint, data = df_glp, paired = TRUE)
+      
+      #results_glp[prevalent_genera_clr[j], timepoints[i]] <- test_glp$estimate
+      results_glp[prevalent_genera_clr[j], timepoints[i]] <- test_glp$p.value
+      
+      #SGLT-2
+      df_sglt <- df_test %>% 
+        filter(PatientID %in% sglt_patients_genus)
+      
+      test_sglt <- t.test(CLR ~ Timepoint, data = df_sglt, paired = TRUE)
+      
+      #results_sglt[prevalent_genera_clr[j], timepoints[i]] <- test_sglt$estimate
+      results_sglt[prevalent_genera_clr[j], timepoints[i]] <- test_sglt$p.value
+      
+      #combined_estimate <- cbind(results_glp, results_sglt)
+      combined_pvalue <- cbind(results_glp, results_sglt)
+
+    }
+}
+
+differential_abundance_results <- cbind(combined_estimate, combined_pvalue)
+colnames(differential_abundance_results) <- c("GLP_II_estimate", "III_estimate", 
+                                              "IV_estimate", "SGLT2_II_estimate",
+                                              "S_III_estimate", "S_IV_estimate",
+                                              "GLP_II_pvalue", "III_pvalue", 
+                                              "IV_pvalue", "SGLT2_II_pvalue", 
+                                              "S_III_pvalue", "S_IV_pvalue")
+differential_abundance_results_raw <- as_tibble(differential_abundance_results, 
+                                                rownames = NA)
+
+differential_abundance_tibble <- differential_abundance_results_raw %>%
+  rownames_to_column(var = "Genus") %>% 
+  mutate(GLP_II_pvalue_b = GLP_II_pvalue * 402,
+         III_pvalue_b = III_pvalue * 402, 
+         IV_pvalue_b = IV_pvalue * 402, 
+         SGLT2_II_pvalue_b = SGLT2_II_pvalue * 402, 
+         S_III_pvalue_b = S_III_pvalue * 402, 
+         S_IV_pvalue_b = S_IV_pvalue * 402)
+
+# 134 * 3 = 402
+# 0.05 / 1020 = 0.0001
+# differential_abundance_tibble %>% print(width = Inf)
+```
+
+
+### Enterotüübi muutus T0-T3 -- Bacteroides/Prevotella 9 
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+bacteroides_prevo_raw <- as.data.frame(t(assay(tse_genus, "clr")))
+
+bacteroides_prevo <- bacteroides_prevo_raw %>% 
+  select(`Prevotella 9`, Bacteroides) %>% 
+  mutate(Timepoint = colData(tse_genus)$Timepoint,
+         Medication = colData(tse_genus)$Medication)
+
+glp_bacteroides_prevo <- bacteroides_prevo %>% 
+  filter(Medication == "GLP-1-RA") %>% 
+  pivot_wider(names_from = Timepoint, values_from = c(`Prevotella 9`, Bacteroides)) %>% 
+  select(`Prevotella 9_I`, `Prevotella 9_III`, Bacteroides_I, Bacteroides_III) %>% 
+  unnest() %>% 
+  mutate(P_B_I = `Prevotella 9_I` / Bacteroides_I,
+         P_B_III = `Prevotella 9_III` / Bacteroides_III)
+
+glp_enterotype_chg_results <- t.test(glp_bacteroides_prevo$P_B_I, 
+                                 glp_bacteroides_prevo$P_B_III, 
+                                 paired = TRUE) %>% 
+  tidy()
+
+sglt_bacteroides_prevo <- bacteroides_prevo %>% 
+  filter(Medication == "SGLT-2") %>% 
+  pivot_wider(names_from = Timepoint, values_from = c(`Prevotella 9`, Bacteroides)) %>% 
+  select(`Prevotella 9_I`, `Prevotella 9_III`, Bacteroides_I, Bacteroides_III) %>% 
+  unnest() %>% 
+  mutate(P_B_I = `Prevotella 9_I` / Bacteroides_I,
+         P_B_III = `Prevotella 9_III` / Bacteroides_III)
+
+sglt_enterotype_chg_results <- t.test(sglt_bacteroides_prevo$P_B_I, 
+                                 sglt_bacteroides_prevo$P_B_III, 
+                                 paired = TRUE) %>% 
+  tidy()
+  
+```
+
+
+## Soolestiku mikrobioomi mõju diabeediravimite vastusele (ravivastuse ennustusvõime)
+
+### Alfamitmekesisuse (T0) ennustusvõime HbA1c suhtes (3m - 0m)
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+alpha_predictions_raw <- as.data.frame(colData(tse_genus))
+
+# Clean and transform relative abundance data corresponding to 134 most prevalent genera
+alpha_predictions <- alpha_predictions_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(1:4, 12, 67:69) %>% 
+  pivot_longer(cols = 6:8, names_to = "alpha_div", values_to = "value") %>% 
+  mutate(alpha_div = recode(alpha_div, 
+                            "shannon" = "Shannon", 
+                            "pielou" = "Pielou", 
+                            "observed" = "Observed")) %>%
+  rename("alpha_div" = "Alpha") %>% 
+  rename("value" = "Value") %>% 
+  filter(!PatientID %in% "GLP1RA-23")
+
+
+# Separate HbA1c values by timepoints and pull into vectors
+
+alpha_results_I <- alpha_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  pull(HbA1c)
+## length(alpha_results_I) - 57
+
+alpha_results_III <- alpha_predictions %>% 
+  filter(Timepoint == "III") %>% 
+  pull(HbA1c)
+## length(alpha_results_III) - 57
+
+HbA1c_chg_T3_T0 <- alpha_results_III - alpha_results_I
+
+# Combine alpha diversity indices to a separate variable
+alpha_div <- c("Shannon", "Pielou", "Observed")
+
+# Create an empty matrix for results
+glp_alpha_HbA1c_results <- matrix(nrow = length(alpha_div),
+                                  ncol = 2)
+rownames(glp_alpha_HbA1c_results) <- alpha_div
+
+sglt_alpha_HbA1c_results <- matrix(nrow = length(alpha_div),
+                                  ncol = 2)
+rownames(sglt_alpha_HbA1c_results) <- alpha_div
+
+# Run for-loop for correlation tests
+
+for (i in 1:length(alpha_div)){
+  
+  alpha_test <- alpha_predictions %>% 
+    filter(Timepoint == "I") %>% 
+    select(Alpha, Value, Medication) %>% 
+    mutate(chg_HbA1c = HbA1c_chg_T3_T0) %>% 
+    filter(Alpha == alpha_div[i])
+  
+  #GLP-1-RA
+  glp_test <- alpha_test %>% 
+    filter(Medication == "GLP-1-RA")
+  
+  glp_cor_test <- cor.test(glp_test$Value, glp_test$chg_HbA1c, method = "pearson")
+  
+  glp_alpha_HbA1c_results[alpha_div[i], 1] <- glp_cor_test$estimate
+  glp_alpha_HbA1c_results[alpha_div[i], 2] <- glp_cor_test$p.value
+  
+  #SGLT-2
+  sglt_test <- alpha_test %>% 
+    filter(Medication == "SGLT-2")
+  
+  sglt_cor_test <- cor.test(sglt_test$Value, sglt_test$chg_HbA1c, method = "pearson")
+  
+  sglt_alpha_HbA1c_results[alpha_div[i], 1] <- sglt_cor_test$estimate
+  sglt_alpha_HbA1c_results[alpha_div[i], 2] <- sglt_cor_test$p.value
+  
+  combined_alpha_HbA1c <- cbind(glp_alpha_HbA1c_results, sglt_alpha_HbA1c_results)
+  
+}
+
+colnames(combined_alpha_HbA1c) <- c("GLP_estimate", "SGLT_estimate", 
+                                    "GLP_pvalue", "SGLT_pvalue")
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+glp_cor_data <- alpha_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  select(Alpha, Value, Medication) %>% 
+  mutate(chg_HbA1c = HbA1c_chg_T3_T0) %>% 
+  filter(Medication == "GLP-1-RA")
+
+glp_cor_plot_shannon <- glp_cor_data %>% 
+  filter(Alpha == "Shannon") %>% 
+  ggplot(aes(x = Value, y = chg_HbA1c)) +
+  facet_grid(Medication~Alpha, switch = "y") +
+  geom_jitter() +
+  geom_smooth(method = lm)
+
+glp_cor_plot_pielou <- glp_cor_data %>% 
+  filter(Alpha == "Pielou") %>% 
+  ggplot(aes(x = Value, y = chg_HbA1c)) +
+  facet_grid(~Alpha) +
+  geom_jitter() +
+  geom_smooth(method = lm)
+
+glp_cor_plot_observed <- glp_cor_data %>% 
+  filter(Alpha == "Observed") %>% 
+  ggplot(aes(x = Value, y = chg_HbA1c)) +
+  facet_grid(~Alpha) +
+  geom_jitter() +
+  geom_smooth(method = lm)
+
+sglt_cor_data <- alpha_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  select(Alpha, Value, Medication) %>% 
+  mutate(chg_HbA1c = HbA1c_chg_T3_T0) %>% 
+  filter(Medication == "SGLT-2")
+
+sglt_cor_plot_shannon <- sglt_cor_data %>% 
+  filter(Alpha == "Shannon") %>% 
+  ggplot(aes(x = Value, y = chg_HbA1c)) +
+  facet_grid(Medication~Alpha, switch = "y") +
+  geom_jitter() +
+  geom_smooth(method = lm)
+
+sglt_cor_plot_pielou <- sglt_cor_data %>% 
+  filter(Alpha == "Pielou") %>% 
+  ggplot(aes(x = Value, y = chg_HbA1c)) +
+  facet_grid(~Alpha) +
+  geom_jitter() +
+  geom_smooth(method = lm)
+
+sglt_cor_plot_observed <- sglt_cor_data %>% 
+  filter(Alpha == "Observed") %>% 
+  ggplot(aes(x = Value, y = chg_HbA1c)) +
+  facet_grid(~Alpha) +
+  geom_jitter() +
+  geom_smooth(method = lm)
+
+
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+common_alpha_HbA1c <- ggpubr::ggarrange(glp_cor_plot_shannon, glp_cor_plot_pielou, 
+                                        glp_cor_plot_observed, sglt_cor_plot_shannon, 
+                                        sglt_cor_plot_pielou, sglt_cor_plot_observed, 
+                                        ncol = 3, nrow = 2, common.legend = TRUE, legend = "right")
+
+annotate_figure(common_alpha_HbA1c, top = "A - GLP-1 retseptori agonist", bottom = "B - SGLT-2 inhibiitor")
+
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+top_genera_clr <- mia::getTopTaxa(tse_genus,
+                                  assay_name = "clr",
+                                  detection = 0,
+                                  prevalence = 5/20)
+
+heatmap_clr <- as.data.frame(t(assay(tse_genus, "clr"))) 
+
+heatmap_clr <- heatmap_clr %>% 
+  select(all_of(top_genera_clr)) %>% 
+  rownames_to_column(var = "SampleID")
+
+heatmap_metadata <- as.data.frame(colData(tse_genus))
+
+heatmap_metadata <- heatmap_metadata %>% 
+  rownames_to_column(var = "SampleID")
+
+heatmap_data_raw <- merge(heatmap_clr, heatmap_metadata)
+
+heatmap_data <- heatmap_data_raw %>% 
+  select(-c(Gender, 59:71))
+
+glp_heatmap_data <- heatmap_data %>% 
+  filter(Medication == "GLP-1-RA") %>% 
+  relocate(PatientID, .before = Bacteroides) %>% 
+  relocate(Timepoint, .before = Bacteroides) %>% 
+  relocate(c("shannon", "pielou", "observed"), .before = Weight) %>% 
+  select(-Medication) %>% 
+  mutate(across(.cols = 4:59, .fns=as.numeric)) %>% 
+  pivot_longer(cols = 4:59, names_to = "Parameter", values_to = "Value")
+
+glp_heatmap_data_BL <- glp_heatmap_data %>% 
+  filter(Timepoint == "I") %>% 
+  rename("Value" = "Value_BL")
+
+glp_heatmap_data_TP <- glp_heatmap_data %>% 
+  filter(!Timepoint %in% c("I"))
+
+glp_heatmap_comb <- merge(glp_heatmap_data_BL, glp_heatmap_data_TP, 
+                          by = c("PatientID", "Parameter"),
+                          all = TRUE)
+
+glp_heatmap <- glp_heatmap_comb %>% 
+  arrange(PatientID, Parameter, SampleID.y) %>% 
+  select(-c(Timepoint.x)) %>% 
+  mutate(chg = Value - Value_BL) %>% 
+  select(-Value) %>% 
+  pivot_wider(names_from = Parameter, values_from = c(Value_BL, chg)) %>% 
+  filter(!Timepoint.y %in% c("II")) %>% 
+  select(-c(PatientID, SampleID.x, SampleID.y, Timepoint.y))
+
+# Remove all NAs
+#glp_heatmap[is.na(glp_heatmap)] <- 0
+
+# Compute a correlation matrix
+glp_corr <- round(cor(glp_heatmap, use = "complete.obs"), 3)
+#glp_corr <- round(cor(glp_heatmap), 1)
+glp_corr[is.na(glp_corr)] <- 0
+
+# Compute a matrix of correlation p-values
+p.mat_glp <- cor_pmat(glp_heatmap)
+p.mat_glp[is.na(p.mat_glp)] <- 0
+
+# Visualize the correlation matrix
+ggcorrplot(glp_corr, hc.order = TRUE, p.mat = p.mat_glp, insig = "blank", tl.cex = 5)
+pheatmap(glp_corr, )
+
+```
+
+
+### Beetamitmekesisuse (PC1, PC2, PC3) (T0) ennustusvõime HbA1c muutuse suhtes (T4 - T0)
+
+** Kas võrdluseks võtan perekondadel põhinevad või proovidel põhinevad PC-d (sõltub vaatluste arv)?**
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Extract CLR-transformed abundance values for top genera per sample
+beta_predictions_prelim <- as.data.frame(assay(tse_genus, "clr"))
+
+# Extract metadata with alpha diversity indices
+beta_samples <- as.data.frame(colData(tse_genus))
+
+# Perform PCA 
+pca_results <- prcomp(t(beta_predictions_prelim))
+
+# Extract PCA data BASED ON SAMPLES (X - SAMPLES, ROTATION - GENERA)
+pca_beta <- pca_results$x
+
+pca_beta <- as.data.frame(pca_beta)
+
+pca_beta <- pca_beta %>% 
+  select(1:3)
+
+# Combine PCs with metadata and alpha diversity
+beta_predictions_raw <- data.frame(pca_beta,
+                                   beta_samples)
+
+beta_predictions <- beta_predictions_raw %>% 
+  select(1:5, 11) %>% 
+  filter(!PatientID %in% c("GLP1RA-3", "GLP1RA-18", "GLP1RA-19", "GLP1RA-20", 
+                           "GLP1RA-21", "GLP1RA-22", "GLP1RA-23")) %>% 
+  pivot_longer(cols = 1:3, names_to = "PC", values_to = "Value") %>% 
+  select(PatientID, Timepoint, PC, Value, HbA1c)
+
+beta_HbA1c_I <- beta_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  pull(HbA1c)
+
+beta_HbA1c_IV <- beta_predictions %>% 
+  filter(Timepoint == "IV") %>% 
+  pull(HbA1c)
+  
+beta_HbA1c <- beta_HbA1c_IV - beta_HbA1c_I
+
+beta_div <- c("PC1", "PC2", "PC3")
+
+
+# Create an empty matrix for results
+beta_HbA1c_results <- matrix(nrow = length(beta_div),
+                              ncol = 2)
+
+rownames(beta_HbA1c_results) <- beta_div
+
+for (i in 1:length(beta_div)){
+  
+  beta_test <- beta_predictions %>% 
+    filter(Timepoint == "I") %>% 
+    select(PC, Value) %>% 
+    mutate(chg_HbA1c = beta_HbA1c) %>% 
+    filter(PC == beta_div[i])
+  
+  cor_test_p <- cor.test(beta_test$Value, beta_test$chg_HbA1c, method = "pearson")
+  
+  beta_HbA1c_results[beta_div[i], 1] <- cor_test_p$estimate
+  beta_HbA1c_results[beta_div[i], 2] <- cor_test_p$p.value
+  return(beta_HbA1c_results)
+}
+
+#p-väärtused palju suuremad, sest tegin testid proovidel põhinevate PC väärtuste järgi (N = 150)
+```
+
+### Prevotella 9 suhtelise mitmekesisuse ennustusvõime (T0) BMI muutuse suhtes (T3 - T0)
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Transform relative abundance values to data frame (might do with CLR?)
+prevotella_predictions_raw <- as.data.frame(t(assay(tse_genus, "relabundance")))
+
+# Combine relative abundance values with metadata
+prevotella_predictions <- prevotella_predictions_raw %>% 
+  select("Prevotella 9") %>% 
+  mutate(Timepoint = colData(tse_genus)$Timepoint,
+         PatientID = colData(tse_genus)$PatientID,
+         BMI = colData(tse_genus)$BMI) %>% 
+  filter(!PatientID %in% "GLP1RA-23")
+
+# Separate BMI values by timepoints and pull into vectors
+prevotella_BMI_I <- prevotella_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  pull(BMI)
+## length(prevotella_BMI_I) - 19
+
+prevotella_BMI_III <- prevotella_predictions %>% 
+  filter(Timepoint == "III") %>% 
+  pull(BMI)
+## length(prevotella_BMI_III) - 19
+
+prevotella_BMI_chg <- prevotella_BMI_III - prevotella_BMI_I
+
+# Create a data frame for correlations
+prevotella_BMI_test <- prevotella_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  mutate(BMI_chg = prevotella_BMI_chg) %>% 
+  select("Prevotella 9", BMI_chg)
+
+prevotella_BMI_results <- cor.test(prevotella_BMI_test$"Prevotella 9", 
+                                   prevotella_BMI_test$BMI_chg,
+                                   method = "pearson")
+
+```
+
+### Bacteroides'e suhtelise mitmekesisuse ennustusvõime (T0) BMI suhtes (T3 - T0)
+
+```{r echo = FALSE, warning = FALSE, message = FALSE}
+
+# Transform relative abundance values to data frame (might do with CLR?)
+bacteroides_predictions_raw <- as.data.frame(t(assay(tse_genus, "relabundance")))
+
+# Combine relative abundance values with metadata
+bacteroides_predictions <- bacteroides_predictions_raw %>% 
+  select("Bacteroides") %>% 
+  mutate(Timepoint = colData(tse_genus)$Timepoint,
+         PatientID = colData(tse_genus)$PatientID,
+         BMI = colData(tse_genus)$BMI) %>% 
+  filter(!PatientID %in% c("GLP1RA-3", "GLP1RA-18", "GLP1RA-19", "GLP1RA-20",
+                           "GLP1RA-21", "GLP1RA-22", "GLP1RA-23"))
+
+# Separate BMI values by timepoints and pull into vectors
+bacteroides_BMI_I <- bacteroides_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  pull(BMI)
+## length(bacteroides_BMI_I) - 13
+
+bacteroides_BMI_IV <- bacteroides_predictions %>% 
+  filter(Timepoint == "IV") %>% 
+  pull(BMI)
+
+## length(bacteroides_BMI_IV) - 13
+
+bacteroides_BMI_chg <- bacteroides_BMI_IV - bacteroides_BMI_I
+
+# Create a data frame for correlations
+bacteroides_BMI_test <- bacteroides_predictions %>% 
+  filter(Timepoint == "I") %>% 
+  mutate(BMI_chg = bacteroides_BMI_chg) %>% 
+  select("Bacteroides", BMI_chg)
+
+
+bacteroides_BMI_results <- cor.test(bacteroides_BMI_test$"Bacteroides", 
+                                    bacteroides_BMI_test$BMI_chg,
+                                   method = "pearson")
+
+```
