@@ -129,6 +129,10 @@ for (j in 1:length(beta_div)){
   
 }
 
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+glp_anova_beta_results <- glp_beta_anova_results %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+
 ## Prepare a for-loop for t-tests
 
 ### Create a list for timepoints
@@ -183,6 +187,12 @@ for (j in 1:length(beta_div)){
   }
 }
 
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+glp_beta_ttest_BH <- glp_beta_ttest_pvalues %>% 
+  rownames_to_column(var = "Beta_div") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+
 # ___________________________________________________________________________ #
 
 
@@ -232,6 +242,10 @@ for (j in 1:length(beta_div)){
   sglt_beta_anova_results$p_value[j] <- model_sglt$ANOVA$p
   
 }
+
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+sglt_anova_beta_results <- sglt_beta_anova_results %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 ## Prepare a for-loop for t-tests - only testing PC2 and PC5 (ANOVA < 0.05)
 
@@ -287,6 +301,10 @@ for (j in 1:length(beta_div)){
   }
 }
 
-# ___________________________________________________________________________ #
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+sglt_beta_ttest_BH <- sglt_beta_ttest_pvalues %>% 
+  rownames_to_column(var = "Beta_div") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
-# ADD P-VALUE CORRECTION!
+# ___________________________________________________________________________ #

@@ -140,6 +140,10 @@ for (j in 1:length(glp_top_taxa2)){
   
 }
 
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+glp_anova_da_results <- glp_results_da %>% 
+  filter(p_value < 0.05) %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
 
@@ -195,6 +199,12 @@ for (j in 1:length(glp_anova_genera)){
 
   }
 }
+
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+glp_da_ttest_BH <- glp_da_ttest_pvalues %>% 
+  rownames_to_column(var = "Genus") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
 
@@ -256,6 +266,11 @@ for (j in 1:length(sglt_top_taxa2)){
   
 }
 
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+sglt_anova_da_results <- sglt_results_da %>% 
+  filter(p_value < 0.05) %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+
 # Perform t-tests
 
 # Initialize empty vector for results
@@ -308,7 +323,11 @@ for (j in 1:length(sglt_anova_genera)){
   }
 }
 
-# ADD P-VALUE CORRECTION!
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+sglt_da_ttest_BH <- sglt_da_ttest_pvalues %>% 
+  rownames_to_column(var = "Genus") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
 

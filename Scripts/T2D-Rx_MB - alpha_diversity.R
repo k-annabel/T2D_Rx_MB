@@ -135,6 +135,10 @@ for (j in 1:length(alpha_div)){
     
 }
 
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+glp_anova_alpha_results <- glp_alpha_anova_results %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+
 ## Prepare a for-loop for t-tests
 
 ### Create a list for timepoints
@@ -188,6 +192,12 @@ for (j in 1:length(alpha_div)){
     
   }
 }
+
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+glp_alpha_ttest_BH <- glp_alpha_ttest_pvalues %>% 
+  rownames_to_column(var = "Alpha_div") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
 
@@ -248,6 +258,10 @@ for (j in 1:length(alpha_div)){
   
 }
 
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+sglt_anova_alpha_results <- sglt_alpha_anova_results %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+
 ## Prepare a for-loop for t-tests
 
 ### Create a list for timepoints
@@ -302,7 +316,11 @@ for (j in 1:length(alpha_div)){
   }
 }
 
-# ADD P-VALUE CORRECTION!
+### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+sglt_alpha_ttest_BH <- sglt_alpha_ttest_pvalues %>% 
+  rownames_to_column(var = "Alpha_div") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
 
