@@ -1,0 +1,334 @@
+# T2D-Rx_MB_analysis - effect of T2D-Rx towards microbiome - differential abundance analysis
+
+# Load packages
+library(here)
+library(dplyr)
+library(flextable)
+library(tidyverse)
+library(tibble)
+library(stringr)
+library(ggplot2)
+library(mia)
+library(miaViz)
+library(purrr)
+library(tidyr)
+library(vegan)
+library(pheatmap)
+library(ggcorrplot)
+library(ggpubr)
+library(paletteer)
+library(ggthemes)
+library(rstatix)
+
+# ___________________________________________________________________________ #
+
+# Load input files
+
+## Load counts (otu-matrix)
+counts <- read.csv("otu_matrix.csv", sep = ";", row.names = 1, check.names = FALSE)
+
+## Load taxonomy (rowData)
+tax <- read.csv("taxonomy.csv", sep = ";", row.names = 1, check.names = FALSE)
+
+## Load metadata (colData)
+samples <- read.csv("metadata.csv", row.names = 1, sep = ",", check.names = FALSE)
+
+## Order columns in counts based on rows in samples
+counts <- counts[ , rownames(samples)]
+
+## Convert input files into right format
+counts <- as.matrix(counts)
+
+## Make a TreeSummarizedExperiment
+tse_taxa <- TreeSummarizedExperiment(assays =  SimpleList(counts = counts),
+                                     colData = DataFrame(samples),
+                                     rowData = DataFrame(tax))
+
+## Remove features containing human DNA
+tse_prelim <- tse_taxa[!rowData(tse_taxa)$Phylum == "" & 
+                         !rowData(tse_taxa)$Class == "" & 
+                         !rowData(tse_taxa)$Kingdom == "Unassigned", ]
+
+## Exclude samples
+tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3", 
+                                                  "GLP1RA-5-4", "GLP1RA-6-2", 
+                                                  "NEG-Valida", "GLP1RA-15-2-2", 
+                                                  "Elini-proov", "AL")]
+
+
+# ___________________________________________________________________________ #
+
+
+# Convert counts into relative abundances
+tse <- transformCounts(tse, assay.type = "counts", method = "relabundance")
+
+# Convert relative abundances into CLR-transformed values
+mat <- assay(tse, "relabundance")
+tse <- transformCounts(tse, assay.type = "relabundance", method = "clr", 
+                       pseudocount = min(mat[mat>0]))
+
+# Collapse into Genus level
+tse_genus <- agglomerateByRank(tse, rank = "Genus")
+
+# Remove "Genus:" label
+rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
+
+# Separate by medication
+tse_glp <- tse_genus[ , colData(tse_genus)$Medication == "GLP-1-RA"]
+tse_sglt <- tse_genus[ , colData(tse_genus)$Medication == "SGLT-2"]
+
+# ___________________________________________________________________________ #
+
+# Differential abundance analysis with repeated measures ANOVA and t-tests
+
+# GLP-1-RA
+
+## Gather top taxa (present in at least 10 samples)
+tse_glp <- transformCounts(tse_glp, method = "pa")
+glp_top_taxa <- names(rowSums(assay(tse_glp, "pa")))[rowSums(assay(tse_glp, "pa")) > 10]
+
+# Clean and transform relative abundance data corresponding to most prevalent genera
+glp_genera_comparisons <- assay(tse_glp, "clr") %>% 
+  as.matrix() %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "Genus") %>% 
+  mutate(Genus = rownames(assay(tse_glp, "clr"))) %>% 
+  filter(Genus %in% glp_top_taxa) %>% 
+  pivot_longer(cols = 2:36, 
+               names_to = "SampleID", 
+               values_to = "clr") %>%
+  mutate(Timepoint = str_extract(SampleID, "(\\d+)$")) %>% 
+  mutate(Timepoint = recode(Timepoint, 
+                            "1" = "I", 
+                            "2" = "II", 
+                            "3" = "III", 
+                            "4" = "IV")) %>% 
+  mutate(PatientID = str_extract(SampleID, "GLP1RA-\\d+")) %>% 
+  relocate(PatientID, .before = "SampleID") %>% 
+  select(-SampleID)
+
+
+# Remove duplicate genera
+glp_top_taxa2 <- glp_top_taxa[!(glp_top_taxa %in% c("uncultured", "uncultured_1"))]
+
+# Create a tibble for results
+glp_results_da <- tibble(x = 1:137) %>% 
+  rownames_to_column(var = "Genus") %>% 
+  dplyr::rename(p_value = x) %>% 
+  add_column(glp_top_taxa2, .before = "p_value") %>% 
+  select(-Genus) %>% 
+  dplyr::rename(Genus = glp_top_taxa2)
+
+
+# Execute the for-loop for repeated measures ANOVA
+
+for (j in 1:length(glp_top_taxa2)){
+  
+  temp_data <- glp_genera_comparisons %>% 
+    dplyr::filter(Genus == glp_top_taxa2[j])
+  
+  df_glp <- temp_data %>% 
+    group_by(PatientID) %>% 
+    filter(n() != 1) %>% 
+    arrange(Timepoint, PatientID) %>% 
+    ungroup()
+  
+  #GLP-1-RA
+  model_glp <- rstatix::anova_test(data = df_glp, dv = clr, wid = PatientID, within = Timepoint)
+  
+  glp_results_da$p_value[j] <- model_glp$ANOVA$p
+  
+}
+
+
+# ___________________________________________________________________________ #
+
+# Perform t-tests for five significant genera in ANOVA results
+
+### Initialize empty vector for results
+timepoints <- c("II", "III", "IV")
+
+### Pull five significant genera
+glp_anova_genera <- glp_results_da %>% 
+  filter(p_value < 0.05) %>% 
+  pull(Genus)
+
+### Make a tibble for estimates
+glp_da_ttest_estimates <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+  add_column(glp_anova_genera, .before = "x") %>% 
+  dplyr::rename(II = x,
+                III = y,
+                IV = z) %>% 
+  column_to_rownames(var = "glp_anova_genera")
+
+### Make a tibble for p-values
+glp_da_ttest_pvalues <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+  add_column(glp_anova_genera, .before = "x") %>% 
+  dplyr::rename(II = x,
+                III = y,
+                IV = z) %>% 
+  column_to_rownames(var = "glp_anova_genera")
+
+
+for (j in 1:length(glp_anova_genera)){
+  
+  temp_data <- glp_genera_comparisons %>% 
+    filter(Genus == glp_anova_genera[j])
+  
+  for (i in 1:length(timepoints)){
+    df_glp <- temp_data %>% 
+      filter(Timepoint %in% c("I", timepoints[i])) %>% 
+      group_by(PatientID) %>% 
+      filter(n() != 1) %>% 
+      arrange(Timepoint, PatientID) %>% 
+      ungroup()
+    
+    da_test_glp_raw <- t.test(clr ~ Timepoint, data = df_glp, paired = TRUE) 
+    
+    da_results_glp <- da_test_glp_raw %>% 
+      broom::tidy()
+    
+    glp_da_ttest_estimates[glp_anova_genera[j], timepoints[i]] <- da_results_glp$estimate
+    glp_da_ttest_pvalues[glp_anova_genera[j], timepoints[i]] <- da_results_glp$p.value
+    
+    glp_da_ttest_results <- cbind(glp_da_ttest_estimates, glp_da_ttest_pvalues)
+
+  }
+}
+
+# ___________________________________________________________________________ #
+
+# SGLT-2
+
+## Gather top taxa (present in at least 10 samples)
+tse_sglt <- transformCounts(tse_sglt, method = "pa")
+sglt_top_taxa <- names(rowSums(assay(tse_sglt, "pa")))[rowSums(assay(tse_sglt, "pa")) > 10]
+
+# Clean and transform relative abundance data corresponding to most prevalent genera
+sglt_genera_comparisons <- assay(tse_sglt, "clr") %>% 
+  as.matrix() %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "Genus") %>% 
+  mutate(Genus = rownames(assay(tse_sglt, "clr"))) %>%
+  pivot_longer(cols = 2:36, 
+               names_to = "SampleID", 
+               values_to = "clr") %>%
+  mutate(Timepoint = str_extract(SampleID, "(\\d+)$")) %>% 
+  mutate(Timepoint = recode(Timepoint, 
+                            "1" = "I", 
+                            "2" = "II", 
+                            "3" = "III", 
+                            "4" = "IV")) %>% 
+  mutate(PatientID = str_extract(SampleID, "GLP1RA-\\d+")) %>% 
+  relocate(PatientID, .before = "SampleID") %>% 
+  select(-SampleID)
+
+# Perform repeated measures ANOVA
+
+# Remove duplicate genera
+sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
+
+# Create a tibble for results
+sglt_results_da <- tibble(x = 1:160) %>% 
+  rownames_to_column(var = "Genus") %>% 
+  dplyr::rename(p_value = x) %>% 
+  add_column(sglt_top_taxa2, .before = "p_value") %>% 
+  select(-Genus) %>% 
+  dplyr::rename(Genus = sglt_top_taxa2)
+
+# Execute the for-loop for repeated measures ANOVA
+
+for (j in 1:length(sglt_top_taxa2)){
+  
+  temp_data <- sglt_genera_comparisons %>% 
+    filter(Genus == sglt_top_taxa2[j])
+  
+  df_sglt <- temp_data %>% 
+    group_by(PatientID) %>% 
+    filter(n() != 1) %>% 
+    arrange(Timepoint, PatientID) %>% 
+    ungroup()
+  
+  #SGLT-2
+  model_sglt <- rstatix::anova_test(data = df_sglt, dv = clr, wid = PatientID, within = Timepoint)
+  
+  sglt_results_da$p_value[j] <- model_sglt$ANOVA$p
+  
+}
+
+# Perform t-tests
+
+# Initialize empty vector for results
+timepoints <- c("II", "III", "IV")
+
+# Pull five significant genera
+sglt_anova_genera <- sglt_results_da %>% 
+  filter(p_value < 0.05) %>% 
+  pull(Genus)
+
+### Make a tibble for estimates
+sglt_da_ttest_estimates <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+  add_column(sglt_anova_genera, .before = "x") %>% 
+  dplyr::rename(II = x,
+                III = y,
+                IV = z) %>% 
+  column_to_rownames(var = "sglt_anova_genera")
+
+### Make a tibble for p-values
+sglt_da_ttest_pvalues <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+  add_column(sglt_anova_genera, .before = "x") %>% 
+  dplyr::rename(II = x,
+                III = y,
+                IV = z) %>% 
+  column_to_rownames(var = "sglt_anova_genera")
+
+for (j in 1:length(sglt_anova_genera)){
+  
+  temp_data <- sglt_genera_comparisons %>% 
+    filter(Genus == sglt_anova_genera[j])
+  
+  for (i in 1:length(timepoints)){
+    df_sglt <- temp_data %>% 
+      filter(Timepoint %in% c("I", timepoints[i])) %>% 
+      group_by(PatientID) %>% 
+      filter(n() != 1) %>% 
+      arrange(Timepoint, PatientID) %>% 
+      ungroup()
+    
+    da_test_sglt_raw <- t.test(clr ~ Timepoint, data = df_sglt, paired = TRUE) 
+    
+    da_results_sglt <- da_test_sglt_raw %>% 
+      broom::tidy()
+    
+    sglt_da_ttest_estimates[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$estimate
+    sglt_da_ttest_pvalues[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$p.value
+    
+    sglt_da_ttest_results <- cbind(sglt_da_ttest_estimates, sglt_da_ttest_pvalues)
+    
+  }
+}
+
+# ADD P-VALUE CORRECTION!
+
+# ___________________________________________________________________________ #
+
+plot_data_raw <- glp_genera_comparisons %>% 
+  filter(Genus == glp_anova_genera)
+
+stat.test <- compare_means(clr ~ Timepoint, group.by = "Genus", ref.group = "I", 
+                           method = "t.test", data = plot_data_raw)
+
+bxp <- glp_genera_comparisons %>% 
+  filter(Genus == glp_anova_genera) %>% 
+  ggboxplot(x = "Timepoint", y = "clr",
+            color = "Genus", facet.by = "Genus", palette = "jco") +
+  stat_pvalue_manual(
+    stat.test, y.position = 33)
+bxp
+
+plot_data_raw <- glp_genera_comparisons %>% 
+  filter(Genus == "Candidatus Soleaferrea") %>% 
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus) +
+  stat_compare_means(comparisons = my_comparisons)

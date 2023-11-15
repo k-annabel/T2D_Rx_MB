@@ -90,7 +90,7 @@ tse_glp <- estimateRichness(tse_glp, assay.type = "relabundance", index = "obser
 
 ## Prepare data
 
-### Extract CLR-transformed abundance values for top genera per sample
+### Extract CLR-transformed abundance values
 tse_glp_clr <- as.data.frame(assay(tse_glp, "clr"))
 
 ### Extract metadata with alpha diversity indices
@@ -104,9 +104,6 @@ glp_alpha_beta_raw <- data.frame(pca_glp$x[ , 1:5],
                                  tse_glp_samples)
 
 ## Prepare a for-loop for repeated measures ANOVA
-
-### Create a list for timepoints
-timepoints <- c("II", "III", "IV")
 
 ### Create a list for alpha diversity indices
 alpha_div <- c("shannon", "pielou", "observed")
@@ -203,7 +200,7 @@ tse_sglt <- estimateRichness(tse_sglt, assay.type = "relabundance", index = "obs
 
 ## Prepare data
 
-### Extract CLR-transformed abundance values for top genera per sample
+### Extract CLR-transformed abundance values
 tse_sglt_clr <- as.data.frame(assay(tse_sglt, "clr"))
 
 ### Extract metadata with alpha diversity indices
@@ -305,3 +302,118 @@ for (j in 1:length(alpha_div)){
   }
 }
 
+# ADD P-VALUE CORRECTION!
+
+# ___________________________________________________________________________ #
+
+# Visualize the results
+
+## GLP-1-RA
+
+glp_alpha_plot_data <- glp_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(7:9, 72:74)) %>% 
+  pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
+  pivot_wider(names_from = Timepoint, values_from = value) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value")
+
+
+glp_alpha_shannon <- glp_alpha_plot_data %>% 
+  filter(alpha_div == "shannon") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test") +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = NULL,
+       y = "Change in value")
+
+glp_alpha_pielou <- glp_alpha_plot_data %>% 
+  filter(alpha_div == "pielou") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Change in timepoint compared to BL",
+       y = NULL)  
+
+glp_alpha_observed <- glp_alpha_plot_data %>% 
+  filter(alpha_div == "observed") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = NULL,
+       y = NULL)
+
+## SGLT-2
+
+sglt_alpha_plot_data <- sglt_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(7:9, 72:74)) %>% 
+  pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
+  pivot_wider(names_from = Timepoint, values_from = value) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value")
+
+sglt_alpha_shannon <- sglt_alpha_plot_data %>% 
+  filter(alpha_div == "shannon") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = NULL,
+       y = "Change in value")    
+
+sglt_alpha_pielou <- sglt_alpha_plot_data %>% 
+  filter(alpha_div == "pielou") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = "Change in timepoint compared to BL",
+       y = NULL)
+
+sglt_alpha_observed <- sglt_alpha_plot_data %>% 
+  filter(alpha_div == "observed") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~alpha_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  labs(x = NULL,
+       y = NULL)
+
+common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha_observed, 
+                                  sglt_alpha_shannon, sglt_alpha_pielou, sglt_alpha_observed, 
+                                  ncol = 3, nrow = 2, common.legend = TRUE, legend = "right")
