@@ -340,14 +340,31 @@ stat.test <- compare_means(clr ~ Timepoint, group.by = "Genus", ref.group = "I",
 bxp <- glp_genera_comparisons %>% 
   filter(Genus == glp_anova_genera) %>% 
   ggboxplot(x = "Timepoint", y = "clr",
-            color = "Genus", facet.by = "Genus", palette = "jco") +
-  stat_pvalue_manual(
-    stat.test, y.position = 33)
+            color = "Genus", facet.by = "Genus", palette = "jco")
 bxp
 
-plot_data_raw <- glp_genera_comparisons %>% 
-  filter(Genus == "Candidatus Soleaferrea") %>% 
+combined_plots <- list()
+
+for (i in 1:length(glp_anova_genera)){
+  
+  plot_data_raw <- glp_genera_comparisons %>% 
+    filter(Genus == glp_anova_genera[i]) %>% 
+    ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+    geom_boxplot() +
+    facet_wrap(~Genus) +
+    stat_compare_means(comparisons = timepoint_comparisons)
+  
+  print(plot_data_raw)
+  
+  combined_plots[[i]] <- plot_data_raw
+  
+  ggarrange(i)
+  
+}
+
+plot_data_raw <- sglt_genera_comparisons %>% 
+  filter(Genus == "DTU089") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
   geom_boxplot() +
   facet_wrap(~Genus) +
-  stat_compare_means(comparisons = my_comparisons)
+  stat_compare_means(comparisons = timepoint_comparisons)
