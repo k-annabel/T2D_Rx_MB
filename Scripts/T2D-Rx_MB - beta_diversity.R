@@ -182,15 +182,22 @@ for (j in 1:length(beta_div)){
     glp_beta_ttest_estimates[beta_div[j], timepoints[i]] <- beta_results_glp$estimate
     glp_beta_ttest_pvalues[beta_div[j], timepoints[i]] <- beta_results_glp$p.value
     
-    glp_beta_ttest_results <- cbind(glp_beta_ttest_estimates, glp_beta_ttest_pvalues)
+    glp_beta_estimates <- glp_beta_ttest_estimates %>% 
+      rownames_to_column(var = "Beta_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "Estimate")
+    
+    glp_beta_pvalues <- glp_beta_ttest_pvalues %>% 
+      rownames_to_column(var = "Beta_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "p_value")
+    
+    glp_beta_ttest_results <- glp_beta_estimates %>% 
+      mutate(p_value = glp_beta_pvalues$p_value)
     
   }
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-glp_beta_ttest_BH <- glp_beta_ttest_pvalues %>% 
-  rownames_to_column(var = "Beta_div") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+glp_beta_ttest_BH <- glp_beta_ttest_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
@@ -253,7 +260,7 @@ sglt_anova_beta_results <- sglt_beta_anova_results %>%
 timepoints <- c("II", "III", "IV")
 
 ### Create a list for beta diversity indices
-beta_div <- c("PC2", "PC5")
+beta_div <- c("PC1", "PC2", "PC3", "PC4", "PC5")
 
 ### Make a tibble for estimates
 sglt_beta_ttest_estimates <- tibble(x = 1:2, y = 1:2, z = 1:2) %>% 
@@ -276,8 +283,8 @@ for (j in 1:length(beta_div)){
   
   temp_beta_sglt <- sglt_beta_raw %>% 
     rownames_to_column(var = "SampleID") %>% 
-    select(c(3, 6:8)) %>% 
-    pivot_longer(cols = 1:2, names_to = "beta_div", values_to = "value") %>% 
+    select(c(2:9)) %>% 
+    pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value") %>% 
     filter(beta_div == beta_div[j])
   
   for (i in 1:length(timepoints)){
@@ -296,15 +303,224 @@ for (j in 1:length(beta_div)){
     sglt_beta_ttest_estimates[beta_div[j], timepoints[i]] <- beta_resuls_sglt$estimate
     sglt_beta_ttest_pvalues[beta_div[j], timepoints[i]] <- beta_resuls_sglt$p.value
     
-    sglt_beta_ttest_results <- cbind(sglt_beta_ttest_estimates, sglt_beta_ttest_pvalues)
+    sglt_beta_estimates <- sglt_beta_ttest_estimates %>% 
+      rownames_to_column(var = "Beta_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "Estimate")
+    
+    sglt_beta_pvalues <- sglt_beta_ttest_pvalues %>% 
+      rownames_to_column(var = "Beta_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "p_value")
+    
+    sglt_beta_ttest_results <- sglt_beta_estimates %>% 
+      mutate(p_value = sglt_beta_pvalues$p_value)
     
   }
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-sglt_beta_ttest_BH <- sglt_beta_ttest_pvalues %>% 
-  rownames_to_column(var = "Beta_div") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+sglt_beta_ttest_BH <- sglt_beta_ttest_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
+
+# Summary results
+
+beta_anova_results <- cbind(glp_anova_beta_results, sglt_anova_beta_results)
+
+t_test_alpha_results <- cbind(glp_beta_ttest_BH, sglt_beta_ttest_BH)
+## Cannot combine them - tested PC2 and PC5 only for SGLT-2 (ANOVA < 0.05)
+
+# ___________________________________________________________________________ #
+
+# Visualize the results
+
+## GLP-1-RA
+
+glp_beta_plot_data <- glp_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(2:9)) %>% 
+  pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value") %>% 
+  pivot_wider(names_from = Timepoint, values_from = value) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value")
+
+
+glp_PC1 <- glp_beta_plot_data %>% 
+  filter(beta_div == "PC1") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value") +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.75) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.75) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.75)
+
+glp_PC2 <- glp_beta_plot_data %>% 
+  filter(beta_div == "PC2") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value") +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.1) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.1) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.1)
+
+glp_PC3 <- glp_beta_plot_data %>% 
+  filter(beta_div == "PC3") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value") +
+  annotate(geom = "text", label = "ns", x = 1, y = 30) +
+  annotate(geom = "text", label = "ns", x = 2, y = 30) +
+  annotate(geom = "text", label = "ns", x = 3, y = 30)
+
+glp_PC4 <- glp_beta_plot_data %>% 
+  filter(beta_div == "PC4") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value") 
+
+glp_PC5 <- glp_beta_plot_data %>% 
+  filter(beta_div == "PC5") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value")
+
+## SGLT-2
+
+sglt_beta_plot_data <- sglt_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(2:9)) %>% 
+  pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value") %>% 
+  pivot_wider(names_from = Timepoint, values_from = value) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value")
+
+
+sglt_PC1 <- sglt_beta_plot_data %>% 
+  filter(beta_div == "PC1") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value") +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.6) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.6) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.6)
+
+sglt_PC2 <- sglt_beta_plot_data %>% 
+  filter(beta_div == "PC2") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value") +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.15) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.15) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.15)
+
+sglt_PC3 <- sglt_beta_plot_data %>% 
+  filter(beta_div == "PC3") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value") + 
+  annotate(geom = "text", label = "ns", x = 1, y = 10) +
+  annotate(geom = "text", label = "ns", x = 2, y = 10) +
+  annotate(geom = "text", label = "ns", x = 3, y = 10) 
+
+sglt_PC4 <- sglt_beta_plot_data %>% 
+  filter(beta_div == "PC4") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value")
+
+sglt_PC5 <- sglt_beta_plot_data %>% 
+  filter(beta_div == "PC5") %>% 
+  na.omit() %>% 
+  group_by(chg) %>% 
+  ggplot(aes(x = chg, y = chg_value)) +
+  facet_grid(Medication~beta_div, switch = "y") +
+  geom_boxplot() +
+  geom_point() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = "Change in value")
+
+common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha_observed, 
+                                  sglt_alpha_shannon, sglt_alpha_pielou, sglt_alpha_observed, 
+                                  ncol = 3, nrow = 2)
+

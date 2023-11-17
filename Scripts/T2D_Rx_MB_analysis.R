@@ -1067,9 +1067,9 @@ hba1c_plot <- metadata_tse %>%
   geom_boxplot() +
   geom_point() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.4) +
-  ggpubr::stat_compare_means(comparisons = comp) +
-  labs(x = "", y = "HbA1c (%)") +
-  scale_x_discrete(labels = c("Baseline", "3rd month", "12th month")) +
+  ggpubr::stat_compare_means(comparisons = hba1c_comp, method = "t.test") +
+  labs(x = "", y = "HbA1c (%, DCCT)") +
+  scale_x_discrete(labels = c("Baseline", "M3", "M12")) +
   theme(
     axis.text.x = element_text(
       angle = 33,
@@ -1078,7 +1078,7 @@ hba1c_plot <- metadata_tse %>%
       size = rel(1.2)
     ))
   
-ggsave("hba1c_plot.png", height = 5, width = 6.5)
+ggsave("hba1c_plot.svg", height = 5, width = 6.5)
 
 bmi_plot <- metadata_tse %>% 
   filter(Timepoint != "II") %>% 
@@ -1087,9 +1087,9 @@ bmi_plot <- metadata_tse %>%
   geom_boxplot() +
   geom_point() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.4) +
-  ggpubr::stat_compare_means(comparisons = comp) +
+  ggpubr::stat_compare_means(comparisons = bmi_comp) +
   labs(x = "", y = "BMI") +
-  scale_x_discrete(labels = c("Baseline", "3rd month", "12th month")) +
+  scale_x_discrete(labels = c("Baseline", "M3", "M12")) +
   theme(
     axis.text.x = element_text(
       angle = 33,
@@ -1098,7 +1098,7 @@ bmi_plot <- metadata_tse %>%
       size = rel(1.2)
     ))
 
-ggsave("bmi_plot.png", height = 5, width = 6.5)
+ggsave("bmi_plot.svg", height = 5, width = 6.5)
       
 
 # ___________________________________________________________________________ #

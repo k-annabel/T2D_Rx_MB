@@ -19,6 +19,7 @@ library(ggpubr)
 library(paletteer)
 library(ggthemes)
 library(rstatix)
+library(emmeans)
 
 # ___________________________________________________________________________ #
 
@@ -108,10 +109,15 @@ glp_alpha_beta_raw <- data.frame(pca_glp$x[ , 1:5],
 ### Create a list for alpha diversity indices
 alpha_div <- c("shannon", "pielou", "observed")
 
-### Create a tibble for results
-glp_alpha_anova_results <- tibble(x = 1:3) %>% 
+### Create a tibble for general effect sizes (ges)
+glp_alpha_anova_ges <- tibble(x = 1:3) %>% 
+  add_column(alpha_div, .before = "x") %>% 
+  dplyr::rename(ges = x)
+
+glp_alpha_anova_pvalues <- tibble(x = 1:3) %>% 
   add_column(alpha_div, .before = "x") %>% 
   dplyr::rename(p_value = x)
+
 
 # Execute the for-loop
 
@@ -131,11 +137,17 @@ for (j in 1:length(alpha_div)){
     
     model_glp <- rstatix::anova_test(data = glp_alpha_test, dv = value, wid = PatientID, within = Timepoint)
     
-    glp_alpha_anova_results$p_value[j] <- model_glp$ANOVA$p
+    glp_alpha_anova_ges$ges[j] <- model_glp$ANOVA$ges
+    glp_alpha_anova_pvalues$p_value[j] <- model_glp$ANOVA$p
+    
+    glp_alpha_anova_results <- cbind(glp_alpha_anova_ges, glp_alpha_anova_pvalues)
     
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+
+glp_alpha_anova_results <- glp_alpha_anova_results[-3]
+
 glp_anova_alpha_results <- glp_alpha_anova_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
@@ -188,15 +200,22 @@ for (j in 1:length(alpha_div)){
     glp_alpha_ttest_estimates[alpha_div[j], timepoints[i]] <- alpha_test_glp$estimate
     glp_alpha_ttest_pvalues[alpha_div[j], timepoints[i]] <- alpha_test_glp$p.value
     
-    glp_alpha_ttest_results <- cbind(glp_alpha_ttest_estimates, glp_alpha_ttest_pvalues)
+    glp_alpha_estimates <- glp_alpha_ttest_estimates %>% 
+      rownames_to_column(var = "Alpha_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "Estimate")
+    
+    glp_alpha_pvalues <- glp_alpha_ttest_pvalues %>% 
+      rownames_to_column(var = "Alpha_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "p_value")
+    
+    glp_alpha_ttest_results <- glp_alpha_estimates %>% 
+      mutate(p_value = glp_alpha_pvalues$p_value)
     
   }
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-glp_alpha_ttest_BH <- glp_alpha_ttest_pvalues %>% 
-  rownames_to_column(var = "Alpha_div") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+glp_alpha_ttest_BH <- glp_alpha_ttest_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
@@ -231,10 +250,15 @@ timepoints <- c("II", "III", "IV")
 ### Create a list for alpha diversity indices
 alpha_div <- c("shannon", "pielou", "observed")
 
-### Create a tibble for results
-sglt_alpha_anova_results <- tibble(x = 1:3) %>% 
+### Create tibbles for results
+sglt_alpha_anova_ges <- tibble(x = 1:3) %>% 
+  add_column(alpha_div, .before = "x") %>% 
+  dplyr::rename(ges = x)
+
+sglt_alpha_anova_pvalues <- tibble(x = 1:3) %>% 
   add_column(alpha_div, .before = "x") %>% 
   dplyr::rename(p_value = x)
+
 
 # Execute the for-loop
 
@@ -254,9 +278,14 @@ for (j in 1:length(alpha_div)){
   
   model_sglt <- rstatix::anova_test(data = sglt_alpha_test, dv = value, wid = PatientID, within = Timepoint)
   
-  sglt_alpha_anova_results$p_value[j] <- model_sglt$ANOVA$p
+  sglt_alpha_anova_ges$ges[j] <- model_sglt$ANOVA$ges
+  sglt_alpha_anova_pvalues$p_value[j] <- model_sglt$ANOVA$p
+  
+  sglt_alpha_anova_results <- cbind(sglt_alpha_anova_ges, sglt_alpha_anova_pvalues)
   
 }
+
+sglt_alpha_anova_results <- sglt_alpha_anova_results[-3]
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
 sglt_anova_alpha_results <- sglt_alpha_anova_results %>% 
@@ -311,16 +340,33 @@ for (j in 1:length(alpha_div)){
     sglt_alpha_ttest_estimates[alpha_div[j], timepoints[i]] <- alpha_test_sglt$estimate
     sglt_alpha_ttest_pvalues[alpha_div[j], timepoints[i]] <- alpha_test_sglt$p.value
     
-    sglt_alpha_ttest_results <- cbind(sglt_alpha_ttest_estimates, sglt_alpha_ttest_pvalues)
+    
+    sglt_alpha_estimates <- sglt_alpha_ttest_estimates %>% 
+      rownames_to_column(var = "Alpha_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "Estimate")
+    
+    sglt_alpha_pvalues <- sglt_alpha_ttest_pvalues %>% 
+      rownames_to_column(var = "Alpha_div") %>% 
+      pivot_longer(cols = 2:4, names_to = "Timepoint", values_to = "p_value")
+    
+    
+    sglt_alpha_ttest_results <- sglt_alpha_estimates %>% 
+      mutate(p_value = sglt_alpha_pvalues$p_value)
     
   }
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-sglt_alpha_ttest_BH <- sglt_alpha_ttest_pvalues %>% 
-  rownames_to_column(var = "Alpha_div") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
+sglt_alpha_ttest_BH <- sglt_alpha_ttest_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+
+# ___________________________________________________________________________ #
+
+# Summary results
+
+anova_alpha_results <- cbind(glp_anova_alpha_results, sglt_anova_alpha_results)
+
+t_test_alpha_results <- cbind(glp_alpha_ttest_BH, sglt_alpha_ttest_BH)
 
 # ___________________________________________________________________________ #
 
@@ -337,48 +383,63 @@ glp_alpha_plot_data <- glp_alpha_beta_raw %>%
          I_III = I - III,
          I_IV = I - IV) %>% 
   pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value")
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value") %>% 
+  mutate(alpha_div = recode(alpha_div, 
+                            "shannon" = "Shannon",
+                            "pielou" = "Pielou",
+                            "observed" = "Observed"))
 
 
 glp_alpha_shannon <- glp_alpha_plot_data %>% 
-  filter(alpha_div == "shannon") %>% 
+  filter(alpha_div == "Shannon") %>% 
   na.omit() %>% 
   group_by(chg) %>% 
   ggplot(aes(x = chg, y = chg_value)) +
   facet_grid(Medication~alpha_div, switch = "y") +
   geom_boxplot() +
   geom_point() +
-  ggpubr::stat_compare_means(comparisons = my_comparisons, method = "t.test") +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
   labs(x = NULL,
-       y = "Change in value")
-
+       y = "Change in value") +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.75) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.75) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.75)
+  
 glp_alpha_pielou <- glp_alpha_plot_data %>% 
-  filter(alpha_div == "pielou") %>% 
+  filter(alpha_div == "Pielou") %>% 
   na.omit() %>% 
   group_by(chg) %>% 
   ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~alpha_div, switch = "y") +
+  facet_grid(.~alpha_div, switch = "y") +
   geom_boxplot() +
   geom_point() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  labs(x = "Change in timepoint compared to BL",
-       y = NULL)  
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  labs(x = NULL,
+       y = NULL)  +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.1) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.1) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.1)
 
 glp_alpha_observed <- glp_alpha_plot_data %>% 
-  filter(alpha_div == "observed") %>% 
+  filter(alpha_div == "Observed") %>% 
   na.omit() %>% 
   group_by(chg) %>% 
   ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~alpha_div, switch = "y") +
+  facet_grid(.~alpha_div, switch = "y") +
   geom_boxplot() +
   geom_point() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
   labs(x = NULL,
-       y = NULL)
+       y = NULL) +
+  annotate(geom = "text", label = "ns", x = 1, y = 30) +
+  annotate(geom = "text", label = "ns", x = 2, y = 30) +
+  annotate(geom = "text", label = "ns", x = 3, y = 30)
 
 ## SGLT-2
 
@@ -391,10 +452,15 @@ sglt_alpha_plot_data <- sglt_alpha_beta_raw %>%
          I_III = I - III,
          I_IV = I - IV) %>% 
   pivot_longer(cols = 4:7, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value")
+  pivot_longer(cols = 4:6, names_to = "chg", values_to = "chg_value") %>% 
+  mutate(alpha_div = recode(alpha_div, 
+                            "shannon" = "Shannon",
+                            "pielou" = "Pielou",
+                            "observed" = "Observed"))
+
 
 sglt_alpha_shannon <- sglt_alpha_plot_data %>% 
-  filter(alpha_div == "shannon") %>% 
+  filter(alpha_div == "Shannon") %>% 
   na.omit() %>% 
   group_by(chg) %>% 
   ggplot(aes(x = chg, y = chg_value)) +
@@ -403,35 +469,47 @@ sglt_alpha_shannon <- sglt_alpha_plot_data %>%
   geom_point() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
   labs(x = NULL,
-       y = "Change in value")    
+       y = "Change in value") +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.6) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.6) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.6)
 
 sglt_alpha_pielou <- sglt_alpha_plot_data %>% 
-  filter(alpha_div == "pielou") %>% 
+  filter(alpha_div == "Pielou") %>% 
   na.omit() %>% 
   group_by(chg) %>% 
   ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~alpha_div, switch = "y") +
+  facet_grid(.~alpha_div, switch = "y") +
   geom_boxplot() +
   geom_point() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  labs(x = "Change in timepoint compared to BL",
-       y = NULL)
+  xlab("Change in timepoint compared to BL") +
+  theme(axis.title.x = element_text(vjust = -1, size = 11), axis.title.y = element_blank()) +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
+  annotate(geom = "text", label = "ns", x = 1, y = 0.15) +
+  annotate(geom = "text", label = "ns", x = 2, y = 0.15) +
+  annotate(geom = "text", label = "ns", x = 3, y = 0.15)
 
 sglt_alpha_observed <- sglt_alpha_plot_data %>% 
-  filter(alpha_div == "observed") %>% 
+  filter(alpha_div == "Observed") %>% 
   na.omit() %>% 
   group_by(chg) %>% 
   ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~alpha_div, switch = "y") +
+  facet_grid(.~alpha_div, switch = "y") +
   geom_boxplot() +
   geom_point() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
+  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
   labs(x = NULL,
-       y = NULL)
+       y = NULL) +
+  annotate(geom = "text", label = "ns", x = 1, y = 10) +
+  annotate(geom = "text", label = "ns", x = 2, y = 10) +
+  annotate(geom = "text", label = "ns", x = 3, y = 10)
 
 common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha_observed, 
                                   sglt_alpha_shannon, sglt_alpha_pielou, sglt_alpha_observed, 
-                                  ncol = 3, nrow = 2, common.legend = TRUE, legend = "right")
+                                  ncol = 3, nrow = 2)

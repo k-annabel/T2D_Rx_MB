@@ -112,7 +112,14 @@ glp_genera_comparisons <- assay(tse_glp, "clr") %>%
 glp_top_taxa2 <- glp_top_taxa[!(glp_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
-glp_results_da <- tibble(x = 1:137) %>% 
+glp_results_ <- tibble(x = 1:137) %>% 
+  rownames_to_column(var = "Genus") %>% 
+  dplyr::rename(p_value = x) %>% 
+  add_column(glp_top_taxa2, .before = "p_value") %>% 
+  select(-Genus) %>% 
+  dplyr::rename(Genus = glp_top_taxa2)
+
+glp_results_pvalue <- tibble(x = 1:137) %>% 
   rownames_to_column(var = "Genus") %>% 
   dplyr::rename(p_value = x) %>% 
   add_column(glp_top_taxa2, .before = "p_value") %>% 
@@ -195,16 +202,19 @@ for (j in 1:length(glp_anova_genera)){
     glp_da_ttest_estimates[glp_anova_genera[j], timepoints[i]] <- da_results_glp$estimate
     glp_da_ttest_pvalues[glp_anova_genera[j], timepoints[i]] <- da_results_glp$p.value
     
-    glp_da_ttest_results <- cbind(glp_da_ttest_estimates, glp_da_ttest_pvalues)
+    glp_da_ttest_results <- bind_cols(glp_da_ttest_estimates, 
+                                      glp_da_ttest_pvalues)
 
   }
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-glp_da_ttest_BH <- glp_da_ttest_pvalues %>% 
+glp_da_ttest_BH <- glp_da_ttest_results %>% 
   rownames_to_column(var = "Genus") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
-  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "estimate") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
+  select(-timepoint)
 
 # ___________________________________________________________________________ #
 
@@ -220,7 +230,7 @@ sglt_genera_comparisons <- assay(tse_sglt, "clr") %>%
   as.data.frame() %>% 
   rownames_to_column(var = "Genus") %>% 
   mutate(Genus = rownames(assay(tse_sglt, "clr"))) %>%
-  pivot_longer(cols = 2:36, 
+  pivot_longer(cols = 2:39,
                names_to = "SampleID", 
                values_to = "clr") %>%
   mutate(Timepoint = str_extract(SampleID, "(\\d+)$")) %>% 
@@ -318,53 +328,188 @@ for (j in 1:length(sglt_anova_genera)){
     sglt_da_ttest_estimates[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$estimate
     sglt_da_ttest_pvalues[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$p.value
     
-    sglt_da_ttest_results <- cbind(sglt_da_ttest_estimates, sglt_da_ttest_pvalues)
+    sglt_da_ttest_results <- bind_cols(sglt_da_ttest_estimates, sglt_da_ttest_pvalues)
     
   }
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-sglt_da_ttest_BH <- sglt_da_ttest_pvalues %>% 
+sglt_da_ttest_BH <- sglt_da_ttest_results %>% 
   rownames_to_column(var = "Genus") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "p_value") %>% 
-  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "estimate") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value") %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
+  select(-timepoint)
 
 # ___________________________________________________________________________ #
 
-plot_data_raw <- glp_genera_comparisons %>% 
-  filter(Genus == glp_anova_genera)
+# Summary results
 
-stat.test <- compare_means(clr ~ Timepoint, group.by = "Genus", ref.group = "I", 
-                           method = "t.test", data = plot_data_raw)
+anova_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
-bxp <- glp_genera_comparisons %>% 
-  filter(Genus == glp_anova_genera) %>% 
-  ggboxplot(x = "Timepoint", y = "clr",
-            color = "Genus", facet.by = "Genus", palette = "jco")
-bxp
+t_test_alpha_results <- cbind(glp_alpha_ttest_BH, sglt_alpha_ttest_BH)
 
-combined_plots <- list()
+# ___________________________________________________________________________ #
 
-for (i in 1:length(glp_anova_genera)){
+
+
+glp_anova_da_plot_rb <- glp_genera_comparisons %>% 
+  filter(Genus == "Romboutsia") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+glp_anova_da_plot_sl <- glp_genera_comparisons %>% 
+  filter(Genus == "Slackia") %>%
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+glp_anova_da_plot_fb <- glp_genera_comparisons %>% 
+  filter(Genus == "Fusobacterium") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+
+glp_anova_da_plot_vl <- glp_genera_comparisons %>% 
+  filter(Genus == "Veillonella") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+
+glp_anova_da_plot_cs <- glp_genera_comparisons %>% 
+  filter(Genus == "Candidatus Soleaferrea") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+
+glp_da <- ggpubr::ggarrange(glp_anova_da_plot_rb, glp_anova_da_plot_sl, 
+                            glp_anova_da_plot_fb, 
+                            glp_anova_da_plot_vl, glp_anova_da_plot_cs,
+                            ncol = 5, nrow = 1)
+
+for (i in 1:5){
   
   plot_data_raw <- glp_genera_comparisons %>% 
     filter(Genus == glp_anova_genera[i]) %>% 
     ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
     geom_boxplot() +
     facet_wrap(~Genus) +
-    stat_compare_means(comparisons = timepoint_comparisons)
+    stat_compare_means(comparisons = timepoint_comparisons, step.increase = 0.1)
   
-  print(plot_data_raw)
-  
-  combined_plots[[i]] <- plot_data_raw
-  
-  ggarrange(i)
+  glp_anova_da_plots[[i]] <- plot_data_raw[i]
   
 }
 
-plot_data_raw <- sglt_genera_comparisons %>% 
+cowplot::plot_grid(glp_anova_da_plots, ncol = 5, nrow = 1)
+
+sglt_anova_da_plot_data <- sglt_genera_comparisons %>% 
+  filter(Genus == sglt_anova_genera)
+
+sglt_da_plot <- sglt_genera_comparisons %>% 
   filter(Genus == "DTU089") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
   geom_boxplot() +
   facet_wrap(~Genus) +
   stat_compare_means(comparisons = timepoint_comparisons)
+
+sglt_da_plot_cc <- sglt_genera_comparisons %>% 
+  filter(Genus == "Coprococcus 2") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+sglt_da_plot_ls <- sglt_genera_comparisons %>% 
+  filter(Genus == "Lachnospiraceae") %>%
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+sglt_da_plot_im <- sglt_genera_comparisons %>% 
+  filter(Genus == "Intestinimonas") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+
+sglt_da_plot_tb <- sglt_genera_comparisons %>% 
+  filter(Genus == "Turicibacter") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+
+sglt_da_plot_dt <- sglt_genera_comparisons %>% 
+  filter(Genus == "DTU089") %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  mutate(I_II = I - II, 
+         I_III = I - III,
+         I_IV = I - IV) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
+  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
+  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  geom_boxplot() +
+  facet_wrap(~Genus)
+
+
+sglt_da <- ggpubr::ggarrange(sglt_da_plot_cc, sglt_da_plot_ls, 
+                            sglt_da_plot_im, sglt_da_plot_tb,
+                            sglt_da_plot_dt,
+                            ncol = 5, nrow = 1)
