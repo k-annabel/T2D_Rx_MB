@@ -60,11 +60,11 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 
 
 # Convert counts into relative abundances
-tse <- transformCounts(tse, assay.type = "counts", method = "relabundance")
+tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
 
 # Convert relative abundances into CLR-transformed values
 mat <- assay(tse, "relabundance")
-tse <- transformCounts(tse, assay.type = "relabundance", method = "clr", 
+tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
                        pseudocount = min(mat[mat>0]))
 
 # Collapse into Genus level
@@ -84,7 +84,7 @@ tse_sglt <- tse_genus[ , colData(tse_genus)$Medication == "SGLT-2"]
 # GLP-1-RA
 
 ## Gather top taxa (present in at least 10 samples)
-tse_glp <- transformCounts(tse_glp, method = "pa")
+tse_glp <- transformAssay(tse_glp, method = "pa")
 glp_top_taxa <- names(rowSums(assay(tse_glp, "pa")))[rowSums(assay(tse_glp, "pa")) > 10]
 
 # Clean and transform relative abundance data corresponding to most prevalent genera
@@ -209,19 +209,24 @@ for (j in 1:length(glp_anova_genera)){
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-glp_da_ttest_BH <- glp_da_ttest_results %>% 
+glp_da_estim <- glp_da_ttest_estimates %>% 
+  rownames_to_column(var = "Genus_GLP") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_GLP", values_to = "estimate_GLP")
+
+glp_da_pvalues <- glp_da_ttest_pvalues %>% 
   rownames_to_column(var = "Genus") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "estimate") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value") %>% 
-  mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
-  select(-timepoint)
+  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value_GLP") %>% 
+  select(-c(Genus, timepoint)) %>% 
+  mutate(p_value_BH_GLP = p.adjust(p_value_GLP, method = "BH"))
+
+glp_da_ttest_BH <- bind_cols(glp_da_estim, glp_da_pvalues)
 
 # ___________________________________________________________________________ #
 
 # SGLT-2
 
 ## Gather top taxa (present in at least 10 samples)
-tse_sglt <- transformCounts(tse_sglt, method = "pa")
+tse_sglt <- transformAssay(tse_sglt, method = "pa")
 sglt_top_taxa <- names(rowSums(assay(tse_sglt, "pa")))[rowSums(assay(tse_sglt, "pa")) > 10]
 
 # Clean and transform relative abundance data corresponding to most prevalent genera
@@ -249,7 +254,7 @@ sglt_genera_comparisons <- assay(tse_sglt, "clr") %>%
 sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
-sglt_results_da <- tibble(x = 1:160) %>% 
+sglt_results_da <- tibble(x = 1:161) %>% 
   rownames_to_column(var = "Genus") %>% 
   dplyr::rename(p_value = x) %>% 
   add_column(sglt_top_taxa2, .before = "p_value") %>% 
@@ -334,12 +339,18 @@ for (j in 1:length(sglt_anova_genera)){
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-sglt_da_ttest_BH <- sglt_da_ttest_results %>% 
+sglt_da_estim <- sglt_da_ttest_estimates %>% 
+  rownames_to_column(var = "Genus_SGLT") %>% 
+  pivot_longer(cols = 2:4, names_to = "timepoint_SGLT", values_to = "estimate_SGLT")
+
+
+sglt_da_pvalues <- sglt_da_ttest_pvalues %>% 
   rownames_to_column(var = "Genus") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_chg", values_to = "estimate") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value") %>% 
-  mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
-  select(-timepoint)
+  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value_SGLT") %>% 
+  select(-c(Genus, timepoint)) %>% 
+  mutate(p_value_BH_SGLT = p.adjust(p_value_SGLT, method = "BH"))
+
+sglt_da_ttest_BH <- bind_cols(sglt_da_estim, sglt_da_pvalues)
 
 # ___________________________________________________________________________ #
 
@@ -347,169 +358,191 @@ sglt_da_ttest_BH <- sglt_da_ttest_results %>%
 
 anova_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
-t_test_alpha_results <- cbind(glp_alpha_ttest_BH, sglt_alpha_ttest_BH)
+t_test_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
 # ___________________________________________________________________________ #
 
+# Visualize results for significant genera after ANOVA
 
+# paletteer::paletteer_d("calecopal::superbloom1")
+# 
+# #B9C7E2FF #ECAB99FF #F1C100FF #5B6530FF #9484B1FF 
 
-glp_anova_da_plot_rb <- glp_genera_comparisons %>% 
+glp_da_plot_rb <- glp_genera_comparisons %>% 
   filter(Genus == "Romboutsia") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#B9C7E2FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 9, label = "0.67") +
+  annotate("text", x = 2.5, y = 9, label = "0.59") +
+  annotate("text", x = 3.5, y = 9, label = "0.11") + 
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "", 
+       y = "CLR") +
+  theme_classic()
 
-glp_anova_da_plot_sl <- glp_genera_comparisons %>% 
+glp_da_plot_sl <- glp_genera_comparisons %>% 
   filter(Genus == "Slackia") %>%
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#ECAB99FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 35, label = "0.85") +
+  annotate("text", x = 2.5, y = 35, label = "0.94") +
+  annotate("text", x = 3.5, y = 35, label = "0.08") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme_classic()
 
-glp_anova_da_plot_fb <- glp_genera_comparisons %>% 
+glp_da_plot_fb <- glp_genera_comparisons %>% 
   filter(Genus == "Fusobacterium") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#F1C100FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 17, label = "0.84") +
+  annotate("text", x = 2.5, y = 17, label = "0.21") +
+  annotate("text", x = 3.5, y = 17, label = "0.08") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(y = "") +
+  theme_classic()
 
-
-glp_anova_da_plot_vl <- glp_genera_comparisons %>% 
+glp_da_plot_vl <- glp_genera_comparisons %>% 
   filter(Genus == "Veillonella") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#5B6530FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 13, label = "0.05") +
+  annotate("text", x = 2.5, y = 13, label = "0.03") +
+  annotate("text", x = 3.5, y = 13, label = "0.553") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme_classic()
 
-
-glp_anova_da_plot_cs <- glp_genera_comparisons %>% 
+glp_da_plot_cs <- glp_genera_comparisons %>% 
   filter(Genus == "Candidatus Soleaferrea") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#9484B1FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 12, label = "0.22") +
+  annotate("text", x = 2.5, y = 12, label = "0.32") +
+  annotate("text", x = 3.5, y = 12, label = "0.02") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme_classic()
 
-
-glp_da <- ggpubr::ggarrange(glp_anova_da_plot_rb, glp_anova_da_plot_sl, 
-                            glp_anova_da_plot_fb, 
-                            glp_anova_da_plot_vl, glp_anova_da_plot_cs,
+glp_da <- ggpubr::ggarrange(glp_da_plot_rb, glp_da_plot_sl, 
+                            glp_da_plot_fb, 
+                            glp_da_plot_vl, glp_da_plot_cs,
                             ncol = 5, nrow = 1)
 
-for (i in 1:5){
-  
-  plot_data_raw <- glp_genera_comparisons %>% 
-    filter(Genus == glp_anova_genera[i]) %>% 
-    ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-    geom_boxplot() +
-    facet_wrap(~Genus) +
-    stat_compare_means(comparisons = timepoint_comparisons, step.increase = 0.1)
-  
-  glp_anova_da_plots[[i]] <- plot_data_raw[i]
-  
-}
+# SGLT-2
 
-cowplot::plot_grid(glp_anova_da_plots, ncol = 5, nrow = 1)
-
-sglt_anova_da_plot_data <- sglt_genera_comparisons %>% 
-  filter(Genus == sglt_anova_genera)
-
-sglt_da_plot <- sglt_genera_comparisons %>% 
-  filter(Genus == "DTU089") %>% 
-  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  geom_boxplot() +
-  facet_wrap(~Genus) +
-  stat_compare_means(comparisons = timepoint_comparisons)
+# paletteer::paletteer_d("calecopal::bixby")
+# #286A81FF #045CB4FF #7F6F43FF #748B75FF #B8B196FF 
 
 sglt_da_plot_cc <- sglt_genera_comparisons %>% 
   filter(Genus == "Coprococcus 2") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#286A81FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 16, label = "1") +
+  annotate("text", x = 2.5, y = 16, label = "0.72") +
+  annotate("text", x = 3.5, y = 16, label = "0.04") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "", 
+       y = "CLR") +
+  theme_classic()
 
 sglt_da_plot_ls <- sglt_genera_comparisons %>% 
-  filter(Genus == "Lachnospiraceae") %>%
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  filter(Genus == "Family:Lachnospiraceae") %>%
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#045CB4FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = -25, label = "0.9") +
+  annotate("text", x = 2.5, y = -25, label = "0.01") +
+  annotate("text", x = 3.5, y = -25, label = "0.12") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme_classic()
 
 sglt_da_plot_im <- sglt_genera_comparisons %>% 
   filter(Genus == "Intestinimonas") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#7F6F43FF") +
+  guides(fill = "none") + 
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 13, label = "1") +
+  annotate("text", x = 2.5, y = 13, label = "0.24") +
+  annotate("text", x = 3.5, y = 13, label = "0.03") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(y = "") +
+  theme_classic()
 
 
 sglt_da_plot_tb <- sglt_genera_comparisons %>% 
   filter(Genus == "Turicibacter") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#748B75FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 17, label = "0.46") +
+  annotate("text", x = 2.5, y = 17, label = "0.35") +
+  annotate("text", x = 3.5, y = 17, label = "0.08") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme_classic()
 
 
 sglt_da_plot_dt <- sglt_genera_comparisons %>% 
   filter(Genus == "DTU089") %>% 
-  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
-  mutate(I_II = I - II, 
-         I_III = I - III,
-         I_IV = I - IV) %>% 
-  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "Value") %>% 
-  pivot_longer(cols = 3:5, names_to = "chg", values_to = "chg_value") %>% 
-  ggplot(aes(x = chg, y = chg_value, fill = Genus)) +
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#B8B196FF") +
+  guides(fill = "none") +
   geom_boxplot() +
-  facet_wrap(~Genus)
-
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  annotate("text", x = 1.5, y = 8, label = "0.40") +
+  annotate("text", x = 2.5, y = 8, label = "0.05") +
+  annotate("text", x = 3.5, y = 8, label = "0.21") +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme_classic()
 
 sglt_da <- ggpubr::ggarrange(sglt_da_plot_cc, sglt_da_plot_ls, 
                             sglt_da_plot_im, sglt_da_plot_tb,
                             sglt_da_plot_dt,
                             ncol = 5, nrow = 1)
+
+combined_da_plot <- ggpubr::ggarrange(glp_da, sglt_da, nrow = 2, ncol = 1)
+
+ggsave("combined_da_plot.png", device = "png", dpi = 300, width = 18, height = 11)
