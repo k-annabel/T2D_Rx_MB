@@ -60,11 +60,11 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 
 
 # Convert counts into relative abundances
-tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
+tse <- transformCounts(tse, assay.type = "counts", method = "relabundance")
 
 # Convert relative abundances into CLR-transformed values
 mat <- assay(tse, "relabundance")
-tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
+tse <- transformCounts(tse, assay.type = "relabundance", method = "clr", 
                        pseudocount = min(mat[mat>0]))
 
 # Collapse into Genus level
@@ -72,6 +72,9 @@ tse_genus <- agglomerateByRank(tse, rank = "Genus")
 
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
+
+# Remove taxa with Genus observation empty
+tse_genus <- tse_genus[rowData(tse_genus)$Genus != "", ]
 
 # Separate by medication
 tse_glp <- tse_genus[ , colData(tse_genus)$Medication == "GLP-1-RA"]
@@ -84,7 +87,7 @@ tse_sglt <- tse_genus[ , colData(tse_genus)$Medication == "SGLT-2"]
 # GLP-1-RA
 
 ## Gather top taxa (present in at least 10 samples)
-tse_glp <- transformAssay(tse_glp, method = "pa")
+tse_glp <- transformCounts(tse_glp, method = "pa")
 glp_top_taxa <- names(rowSums(assay(tse_glp, "pa")))[rowSums(assay(tse_glp, "pa")) > 10]
 
 # Clean and transform relative abundance data corresponding to most prevalent genera
@@ -112,27 +115,27 @@ glp_genera_comparisons <- assay(tse_glp, "clr") %>%
 glp_top_taxa2 <- glp_top_taxa[!(glp_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
-glp_results_ <- tibble(x = 1:137) %>% 
+glp_results_estimates <- tibble(x = 1:128) %>% 
   rownames_to_column(var = "Genus") %>% 
   dplyr::rename(p_value = x) %>% 
-  add_column(glp_top_taxa2, .before = "p_value") %>% 
+  add_column(glp_top_taxa, .before = "p_value") %>% 
   select(-Genus) %>% 
-  dplyr::rename(Genus = glp_top_taxa2)
+  dplyr::rename(Genus = glp_top_taxa)
 
-glp_results_pvalue <- tibble(x = 1:137) %>% 
+glp_results_pvalue <- tibble(x = 1:128) %>% 
   rownames_to_column(var = "Genus") %>% 
   dplyr::rename(p_value = x) %>% 
-  add_column(glp_top_taxa2, .before = "p_value") %>% 
+  add_column(glp_top_taxa, .before = "p_value") %>% 
   select(-Genus) %>% 
-  dplyr::rename(Genus = glp_top_taxa2)
+  dplyr::rename(Genus = glp_top_taxa)
 
 
 # Execute the for-loop for repeated measures ANOVA
 
-for (j in 1:length(glp_top_taxa2)){
+for (j in 1:length(glp_top_taxa)){
   
   temp_data <- glp_genera_comparisons %>% 
-    dplyr::filter(Genus == glp_top_taxa2[j])
+    dplyr::filter(Genus == glp_top_taxa[j])
   
   df_glp <- temp_data %>% 
     group_by(PatientID) %>% 
@@ -201,9 +204,6 @@ for (j in 1:length(glp_anova_genera)){
     
     glp_da_ttest_estimates[glp_anova_genera[j], timepoints[i]] <- da_results_glp$estimate
     glp_da_ttest_pvalues[glp_anova_genera[j], timepoints[i]] <- da_results_glp$p.value
-    
-    glp_da_ttest_results <- bind_cols(glp_da_ttest_estimates, 
-                                      glp_da_ttest_pvalues)
 
   }
 }
@@ -226,7 +226,7 @@ glp_da_ttest_BH <- bind_cols(glp_da_estim, glp_da_pvalues)
 # SGLT-2
 
 ## Gather top taxa (present in at least 10 samples)
-tse_sglt <- transformAssay(tse_sglt, method = "pa")
+tse_sglt <- transformCounts(tse_sglt, method = "pa")
 sglt_top_taxa <- names(rowSums(assay(tse_sglt, "pa")))[rowSums(assay(tse_sglt, "pa")) > 10]
 
 # Clean and transform relative abundance data corresponding to most prevalent genera
@@ -254,19 +254,19 @@ sglt_genera_comparisons <- assay(tse_sglt, "clr") %>%
 sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
-sglt_results_da <- tibble(x = 1:161) %>% 
+sglt_results_da <- tibble(x = 1:147) %>% 
   rownames_to_column(var = "Genus") %>% 
   dplyr::rename(p_value = x) %>% 
-  add_column(sglt_top_taxa2, .before = "p_value") %>% 
+  add_column(sglt_top_taxa, .before = "p_value") %>% 
   select(-Genus) %>% 
-  dplyr::rename(Genus = sglt_top_taxa2)
+  dplyr::rename(Genus = sglt_top_taxa)
 
 # Execute the for-loop for repeated measures ANOVA
 
-for (j in 1:length(sglt_top_taxa2)){
+for (j in 1:length(sglt_top_taxa)){
   
   temp_data <- sglt_genera_comparisons %>% 
-    filter(Genus == sglt_top_taxa2[j])
+    filter(Genus == sglt_top_taxa[j])
   
   df_sglt <- temp_data %>% 
     group_by(PatientID) %>% 
@@ -283,7 +283,7 @@ for (j in 1:length(sglt_top_taxa2)){
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
 sglt_anova_da_results <- sglt_results_da %>% 
-  filter(p_value < 0.05) %>% 
+  filter(p_value <= 0.05) %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # Perform t-tests
@@ -293,7 +293,7 @@ timepoints <- c("II", "III", "IV")
 
 # Pull five significant genera
 sglt_anova_genera <- sglt_results_da %>% 
-  filter(p_value < 0.05) %>% 
+  filter(p_value <= 0.05) %>% 
   pull(Genus)
 
 ### Make a tibble for estimates
@@ -332,8 +332,6 @@ for (j in 1:length(sglt_anova_genera)){
     
     sglt_da_ttest_estimates[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$estimate
     sglt_da_ttest_pvalues[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$p.value
-    
-    sglt_da_ttest_results <- bind_cols(sglt_da_ttest_estimates, sglt_da_ttest_pvalues)
     
   }
 }
@@ -374,88 +372,111 @@ glp_da_plot_rb <- glp_genera_comparisons %>%
   scale_fill_manual(values = "#B9C7E2FF") +
   guides(fill = "none") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
-    y_position = c(6.2, 6.6, 7.0), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(6.2, 7.0, 7.8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.67", "0.59", "0.11"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "", 
        y = "CLR") +
-  theme_classic()
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
-glp_da_plot_sl <- glp_genera_comparisons %>% 
-  filter(Genus == "Slackia") %>%
+glp_da_plot_im <- glp_genera_comparisons %>% 
+  filter(Genus == "Intestinimonas") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
   scale_fill_manual(values = "#ECAB99FF") +
   guides(fill = "none") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
-    y_position = c(30, 32, 34), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.85", "0.94", "0.08"), tip_length = 0.02) +
+    y_position = c(6, 7, 8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.77", "0.9", "0.55"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "") +
-  theme_classic()
+       y = NULL) +
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
-glp_da_plot_fb <- glp_genera_comparisons %>% 
-  filter(Genus == "Fusobacterium") %>% 
+glp_da_plot_hf <- glp_genera_comparisons %>% 
+  filter(Genus == "Haemophilus") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
   scale_fill_manual(values = "#F1C100FF") +
   guides(fill = "none") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
-    y_position = c(15, 16, 17), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.84", "0.21", "0.08"), tip_length = 0.02) +
+    y_position = c(35, 39, 43), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.17", "0.16", "0.34"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(y = "") +
-  theme_classic()
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
-glp_da_plot_vl <- glp_genera_comparisons %>% 
-  filter(Genus == "Veillonella") %>% 
+glp_da_plot_mb <- glp_genera_comparisons %>% 
+  filter(Genus == "Marvinbryantia") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
   scale_fill_manual(values = "#5B6530FF") +
   guides(fill = "none") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
-    y_position = c(11, 12, 13), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.05", "0.03", "0.55"), tip_length = 0.02) +
+    y_position = c(8, 9, 10), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.2", "0.16", "0.67"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "") +
-  theme_classic()
+       y = NULL) +
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
-glp_da_plot_cs <- glp_genera_comparisons %>% 
-  filter(Genus == "Candidatus Soleaferrea") %>% 
+glp_da_plot_rt <- glp_genera_comparisons %>% 
+  filter(Genus == "Rothia") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
   scale_fill_manual(values = "#9484B1FF") +
   guides(fill = "none") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
-    y_position = c(11, 12, 13), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.22", "0.32", "0.02"), tip_length = 0.02) +
+    y_position = c(13, 15, 17), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.03", "0.36", "0.86"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "") +
-  theme_classic()
+       y = NULL) +
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
-glp_da <- ggpubr::ggarrange(glp_da_plot_rb, glp_da_plot_sl, 
-                            glp_da_plot_fb, 
-                            glp_da_plot_vl, glp_da_plot_cs,
+glp_da <- ggpubr::ggarrange(glp_da_plot_rb, glp_da_plot_im, 
+                            glp_da_plot_hf, 
+                            glp_da_plot_mb, glp_da_plot_rt,
                             ncol = 5, nrow = 1)
 
 # SGLT-2
 
 # paletteer::paletteer_d("calecopal::bixby")
-# #286A81FF #045CB4FF #7F6F43FF #748B75FF #B8B196FF 
+# #286A81FF #045CB4FF #7F6F43FF #748B75FF #B8B196FF
+
+sglt_da_plot_as <- sglt_genera_comparisons %>% 
+  filter(Genus == "Alistipes") %>%
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#045CB4FF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(40, 45, 50), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.18", "0.19", "0.97"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "CLR") +
+  guides(fill = "none") +
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
 sglt_da_plot_cc <- sglt_genera_comparisons %>% 
   filter(Genus == "Coprococcus 2") %>% 
@@ -463,49 +484,34 @@ sglt_da_plot_cc <- sglt_genera_comparisons %>%
   scale_fill_manual(values = "#286A81FF") +
   guides(fill = "none") +
   geom_boxplot() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
-  facet_wrap(~Genus, scales = "free") +
-  ggsignif::geom_signif(
-    y_position = c(16, 17, 18), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("1", "0.72", "0.04"), tip_length = 0.02) +
-  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(x = "", 
-       y = "CLR") +
-  guides(fill = "none") +
-  theme_classic()
-
-sglt_da_plot_ls <- sglt_genera_comparisons %>% 
-  filter(Genus == "Family:Lachnospiraceae") %>%
-  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#045CB4FF") +
-  guides(fill = "none") +
-  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
-    y_position = c(-25, -18, -11), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.9", "0.01", "0.12"), tip_length = 0.02) +
+    y_position = c(16, 18, 20), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("1", "0.72", "0.04"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(x = "",
+  labs(x = "", 
        y = "") +
   guides(fill = "none") +
-  theme_classic()
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
 sglt_da_plot_im <- sglt_genera_comparisons %>% 
   filter(Genus == "Intestinimonas") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#7F6F43FF") +
+  scale_fill_manual(values = "#ECAB99FF") +
   guides(fill = "none") + 
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
-    y_position = c(13, 14, 15), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(13, 15, 17), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("1", "0.24", "0.03"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(y = "") +
   guides(fill = "none") +
-  theme_classic()
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
 
 sglt_da_plot_tb <- sglt_genera_comparisons %>% 
@@ -514,16 +520,17 @@ sglt_da_plot_tb <- sglt_genera_comparisons %>%
   scale_fill_manual(values = "#748B75FF") +
   guides(fill = "none") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") + 
   ggsignif::geom_signif(
-    y_position = c(17, 18, 19), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(17, 20, 23), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.46", "0.35", "0.08"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "") +
+       y = NULL) +
   guides(fill = "none") +
-  theme_classic()
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
 
 sglt_da_plot_dt <- sglt_genera_comparisons %>% 
@@ -532,6 +539,7 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
   scale_fill_manual(values = "#B8B196FF") +
   guides(fill = "none") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
@@ -539,15 +547,15 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
     annotation = c("0.4", "0.05", "0.21"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "") +
+       y = NULL) +
   guides(fill = "none") +
-  theme_classic()
+  theme(strip.text = element_text(size = 12, face = "italic"))
 
-sglt_da <- ggpubr::ggarrange(sglt_da_plot_cc, sglt_da_plot_ls, 
-                            sglt_da_plot_im, sglt_da_plot_tb,
-                            sglt_da_plot_dt,
-                            ncol = 5, nrow = 1)
+sglt_da <- ggpubr::ggarrange(sglt_da_plot_as, sglt_da_plot_cc, 
+                             sglt_da_plot_im, sglt_da_plot_tb,
+                             sglt_da_plot_dt,
+                             ncol = 5, nrow = 1)
 
 combined_da_plot <- ggpubr::ggarrange(glp_da, sglt_da, nrow = 2, ncol = 1)
 
-ggsave("combined_da_plot.png", device = "png", dpi = 300, width = 18, height = 11)
+ggsave("combined_da_plot.png", device = "png", width = 18, height = 11)
