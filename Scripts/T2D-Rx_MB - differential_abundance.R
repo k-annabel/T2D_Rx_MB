@@ -376,9 +376,9 @@ glp_da_plot_rb <- glp_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 9, label = "0.67") +
-  annotate("text", x = 2.5, y = 9, label = "0.59") +
-  annotate("text", x = 3.5, y = 9, label = "0.11") + 
+  ggsignif::geom_signif(
+    y_position = c(6.2, 6.6, 7.0), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.67", "0.59", "0.11"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "", 
        y = "CLR") +
@@ -392,9 +392,9 @@ glp_da_plot_sl <- glp_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 35, label = "0.85") +
-  annotate("text", x = 2.5, y = 35, label = "0.94") +
-  annotate("text", x = 3.5, y = 35, label = "0.08") +
+  ggsignif::geom_signif(
+    y_position = c(30, 32, 34), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.85", "0.94", "0.08"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
@@ -408,9 +408,9 @@ glp_da_plot_fb <- glp_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 17, label = "0.84") +
-  annotate("text", x = 2.5, y = 17, label = "0.21") +
-  annotate("text", x = 3.5, y = 17, label = "0.08") +
+  ggsignif::geom_signif(
+    y_position = c(15, 16, 17), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.84", "0.21", "0.08"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(y = "") +
   theme_classic()
@@ -423,9 +423,9 @@ glp_da_plot_vl <- glp_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 13, label = "0.05") +
-  annotate("text", x = 2.5, y = 13, label = "0.03") +
-  annotate("text", x = 3.5, y = 13, label = "0.553") +
+  ggsignif::geom_signif(
+    y_position = c(11, 12, 13), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.05", "0.03", "0.55"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
@@ -439,9 +439,9 @@ glp_da_plot_cs <- glp_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 12, label = "0.22") +
-  annotate("text", x = 2.5, y = 12, label = "0.32") +
-  annotate("text", x = 3.5, y = 12, label = "0.02") +
+  ggsignif::geom_signif(
+    y_position = c(11, 12, 13), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.22", "0.32", "0.02"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
@@ -463,14 +463,15 @@ sglt_da_plot_cc <- sglt_genera_comparisons %>%
   scale_fill_manual(values = "#286A81FF") +
   guides(fill = "none") +
   geom_boxplot() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 16, label = "1") +
-  annotate("text", x = 2.5, y = 16, label = "0.72") +
-  annotate("text", x = 3.5, y = 16, label = "0.04") +
+  ggsignif::geom_signif(
+    y_position = c(16, 17, 18), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("1", "0.72", "0.04"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "", 
        y = "CLR") +
+  guides(fill = "none") +
   theme_classic()
 
 sglt_da_plot_ls <- sglt_genera_comparisons %>% 
@@ -481,12 +482,13 @@ sglt_da_plot_ls <- sglt_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = -25, label = "0.9") +
-  annotate("text", x = 2.5, y = -25, label = "0.01") +
-  annotate("text", x = 3.5, y = -25, label = "0.12") +
+  ggsignif::geom_signif(
+    y_position = c(-25, -18, -11), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.9", "0.01", "0.12"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
+  guides(fill = "none") +
   theme_classic()
 
 sglt_da_plot_im <- sglt_genera_comparisons %>% 
@@ -497,11 +499,12 @@ sglt_da_plot_im <- sglt_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 13, label = "1") +
-  annotate("text", x = 2.5, y = 13, label = "0.24") +
-  annotate("text", x = 3.5, y = 13, label = "0.03") +
+  ggsignif::geom_signif(
+    y_position = c(13, 14, 15), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("1", "0.24", "0.03"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(y = "") +
+  guides(fill = "none") +
   theme_classic()
 
 
@@ -512,13 +515,14 @@ sglt_da_plot_tb <- sglt_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 17, label = "0.46") +
-  annotate("text", x = 2.5, y = 17, label = "0.35") +
-  annotate("text", x = 3.5, y = 17, label = "0.08") +
+  facet_wrap(~Genus, scales = "free") + 
+  ggsignif::geom_signif(
+    y_position = c(17, 18, 19), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.46", "0.35", "0.08"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
+  guides(fill = "none") +
   theme_classic()
 
 
@@ -530,12 +534,13 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   facet_wrap(~Genus, scales = "free") +
-  annotate("text", x = 1.5, y = 8, label = "0.40") +
-  annotate("text", x = 2.5, y = 8, label = "0.05") +
-  annotate("text", x = 3.5, y = 8, label = "0.21") +
+  ggsignif::geom_signif(
+    y_position = c(8, 9, 10), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.4", "0.05", "0.21"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
+  guides(fill = "none") +
   theme_classic()
 
 sglt_da <- ggpubr::ggarrange(sglt_da_plot_cc, sglt_da_plot_ls, 

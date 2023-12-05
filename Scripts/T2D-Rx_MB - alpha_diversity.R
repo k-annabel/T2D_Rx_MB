@@ -391,7 +391,7 @@ glp_alpha_plot_data <- glp_alpha_beta_raw %>%
 
 
 glp_alpha_shannon <- glp_alpha_plot_data %>% 
-  filter(alpha_div == "Shannon") %>% 
+  filter(alpha_div == "shannon") %>% 
   na.omit() %>% 
   group_by(chg) %>% 
   ggplot(aes(x = chg, y = chg_value)) +
@@ -513,3 +513,139 @@ sglt_alpha_observed <- sglt_alpha_plot_data %>%
 common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha_observed, 
                                   sglt_alpha_shannon, sglt_alpha_pielou, sglt_alpha_observed, 
                                   ncol = 3, nrow = 2)
+
+# New version
+
+## GLP-1-RA
+
+# paletteer_d("ggprism::viridis")
+
+  #440154FF #414487FF #2A788EFF #22A884FF #7AD151FF #FDE725FF
+
+glp_alpha_data <- glp_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(7:9, 72:74)) %>% 
+  pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
+  mutate(alpha_div = recode(alpha_div, 
+                            "shannon" = "Shannon",
+                            "pielou" = "Pielou",
+                            "observed" = "Observed"))
+
+
+glp_alpha_shannon <- glp_alpha_data %>% 
+  filter(alpha_div == "Shannon") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = alpha_div)) +
+  scale_fill_manual(values = "#22A884FF") +
+  facet_grid(Medication~alpha_div, switch = "y", scales = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  guides(fill = "none") +
+  labs(x = NULL,
+       y = "Value") +
+  ggsignif::geom_signif(
+    y_position = c(3.6, 3.8, 4.0), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.47", "0.12", "0.51"), tip_length = 0.02) +
+  theme_classic()
+
+glp_alpha_pielou <- glp_alpha_data %>% 
+  filter(alpha_div == "Pielou") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = alpha_div)) +
+  facet_grid(.~alpha_div, switch = "y", scales = "free") +
+  scale_fill_manual(values = "#7AD151FF") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(0.85, 0.9, 0.95), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.5", "0.07", "0.67"), tip_length = 0.02) +
+  theme_classic()
+
+glp_alpha_observed <- glp_alpha_data %>% 
+  filter(alpha_div == "Observed") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = alpha_div)) +
+  facet_grid(.~alpha_div, switch = "y", scales = "free") +
+  scale_fill_manual(values = "#FDE725FF") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(90, 95, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.68", "0.37", "0.29"), tip_length = 0.02) +
+  theme_classic()
+
+glp_alpha_comb <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, 
+                                    glp_alpha_observed, nrow = 1, ncol = 3)
+
+## SGLT-2
+
+sglt_alpha_data <- sglt_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(7:9, 72:74)) %>% 
+  pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
+  mutate(alpha_div = recode(alpha_div, 
+                            "shannon" = "Shannon",
+                            "pielou" = "Pielou",
+                            "observed" = "Observed"))
+
+sglt_alpha_shannon <- sglt_alpha_data %>% 
+  filter(alpha_div == "Shannon") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = alpha_div)) +
+  scale_fill_manual(values = "#22A884FF") +
+  facet_grid(Medication~alpha_div, switch = "y", scales = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = "Value") +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(3.6, 3.7, 3.8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.55", "0.68", "0.08"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_alpha_pielou <- sglt_alpha_data %>% 
+  filter(alpha_div == "Pielou") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = alpha_div)) +
+  scale_fill_manual(values = "#7AD151FF") +
+  facet_grid(.~alpha_div, switch = "y", scales = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "Timepoint",
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(0.82, 0.84, 0.86), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.53", "0.71", "0.08"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_alpha_observed <- sglt_alpha_data %>% 
+  filter(alpha_div == "Observed") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = alpha_div)) +
+  scale_fill_manual(values = "#FDE725FF") +
+  facet_grid(.~alpha_div, switch = "y", scales = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(102, 104, 106), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.87", "0.58", "0.93"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_alpha_comb <- ggpubr::ggarrange(sglt_alpha_shannon, sglt_alpha_pielou, 
+                                     sglt_alpha_observed, nrow = 1, ncol = 3)
+
+alpha_comb <- ggpubr::ggarrange(glp_alpha_comb, sglt_alpha_comb, 
+                                nrow = 2, ncol = 1)
+
+ggsave("combined_alpha_plot.svg", device = "svg", dpi = 300, width = 13, height = 11)

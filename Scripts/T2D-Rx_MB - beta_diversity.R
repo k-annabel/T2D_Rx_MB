@@ -263,7 +263,7 @@ timepoints <- c("II", "III", "IV")
 beta_div <- c("PC1", "PC2", "PC3", "PC4", "PC5")
 
 ### Make a tibble for estimates
-sglt_beta_ttest_estimates <- tibble(x = 1:2, y = 1:2, z = 1:2) %>% 
+sglt_beta_ttest_estimates <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
   add_column(beta_div, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -271,7 +271,7 @@ sglt_beta_ttest_estimates <- tibble(x = 1:2, y = 1:2, z = 1:2) %>%
   column_to_rownames(var = "beta_div")
 
 ### Make a tibble for p-values
-sglt_beta_ttest_pvalues <- tibble(x = 1:2, y = 1:2, z = 1:2) %>% 
+sglt_beta_ttest_pvalues <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
   add_column(beta_div, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -524,3 +524,197 @@ common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha
                                   sglt_alpha_shannon, sglt_alpha_pielou, sglt_alpha_observed, 
                                   ncol = 3, nrow = 2)
 
+# New version
+
+## GLP-1-RA
+
+# paletteer::paletteer_d("fishualize::Thunnus_obesus") 
+
+#  #669ABFFF #D4D05BFF #FDF6E2FF #747798FF #534D56FF 
+
+glp_beta_data <- glp_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(2:9)) %>%
+  pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value")
+
+glp_PC1_plot <- glp_beta_data %>% 
+  filter(beta_div == "PC1") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#669ABFFF") +
+  facet_grid(Medication~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = "Value") +
+  ggsignif::geom_signif(
+    y_position = c(130, 140, 150), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.25", "0.16", "0.28"), tip_length = 0.02) +
+  guides(fill = "none") +
+  theme_classic()
+
+glp_PC2_plot <- glp_beta_data %>% 
+  filter(beta_div == "PC2") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#D4D05BFF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  ggsignif::geom_signif(
+    y_position = c(105, 115, 125), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.70", "0.99", "0.73"), tip_length = 0.02) +
+  guides(fill = "none") +
+  theme_classic()
+
+glp_PC3_plot <- glp_beta_data %>% 
+  filter(beta_div == "PC3") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#FDF6E2FF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  ggsignif::geom_signif(
+    y_position = c(75, 85, 95), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.9", "0.43", "0.3"), tip_length = 0.02) +
+  guides(fill = "none") +
+  theme_classic()
+
+glp_PC4_plot <- glp_beta_data %>% 
+  filter(beta_div == "PC4") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#747798FF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  ggsignif::geom_signif(
+    y_position = c(60, 65, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.58", "0.52", "0.42"), tip_length = 0.02) +
+  guides(fill = "none") +
+  theme_classic()
+
+glp_PC5_plot <- glp_beta_data %>% 
+  filter(beta_div == "PC5") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#534D56FF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  ggsignif::geom_signif(
+    y_position = c(60, 65, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.32", "0.44", "0.51"), tip_length = 0.02) +
+  guides(fill = "none") +
+  theme_classic()
+
+glp_beta_comb <- ggpubr::ggarrange(glp_PC1_plot, glp_PC2_plot, glp_PC3_plot, 
+                                   glp_PC4_plot, glp_PC5_plot, nrow = 1, ncol = 5)
+
+## SGLT-2
+
+# paletteer::paletteer_d("fishualize::Thunnus_obesus") 
+
+#  #669ABFFF #D4D05BFF #FDF6E2FF #747798FF #534D56FF 
+
+sglt_beta_data <- sglt_alpha_beta_raw %>% 
+  rownames_to_column(var = "SampleID") %>% 
+  select(c(2:9)) %>%
+  pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value")
+
+sglt_PC1_plot <- sglt_beta_data %>% 
+  filter(beta_div == "PC1") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#669ABFFF") +
+  facet_grid(Medication~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = "Value") +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(110, 120, 130), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.7", "0.06", "0.32"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_PC2_plot <- sglt_beta_data %>% 
+  filter(beta_div == "PC2") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#D4D05BFF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(80, 90, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.56", "0.41", "0.3"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_PC3_plot <- sglt_beta_data %>% 
+  filter(beta_div == "PC3") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#FDF6E2FF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "Timepoint",
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(70, 80, 90), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.9", "0.43", "0.3"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_PC4_plot <- sglt_beta_data %>% 
+  filter(beta_div == "PC4") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#747798FF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(50, 60, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.77", "0.95", "0.35"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_PC5_plot <- sglt_beta_data %>% 
+  filter(beta_div == "PC5") %>% 
+  ggplot(aes(x = Timepoint, y = value, fill = beta_div)) +
+  scale_fill_manual(values = "#534D56FF") +
+  facet_grid(.~beta_div, switch = "y", scale = "free") +
+  geom_boxplot() +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = NULL,
+       y = NULL) +
+  guides(fill = "none") +
+  ggsignif::geom_signif(
+    y_position = c(30, 40, 50), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.53", "0.008", "0.08"), tip_length = 0.02) +
+  theme_classic()
+
+sglt_beta_comb <- ggpubr::ggarrange(sglt_PC1_plot, sglt_PC2_plot, sglt_PC3_plot, 
+                                   sglt_PC4_plot, sglt_PC5_plot, nrow = 1, ncol = 5)
+
+beta_comb <- ggpubr::ggarrange(glp_beta_comb, sglt_beta_comb, 
+                                nrow = 2, ncol = 1)
+
+ggsave("combined_beta_plot.png", device = "png", dpi = 300, width = 18, height = 11)
