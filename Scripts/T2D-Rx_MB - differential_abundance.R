@@ -60,11 +60,11 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 
 
 # Convert counts into relative abundances
-tse <- transformCounts(tse, assay.type = "counts", method = "relabundance")
+tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
 
 # Convert relative abundances into CLR-transformed values
 mat <- assay(tse, "relabundance")
-tse <- transformCounts(tse, assay.type = "relabundance", method = "clr", 
+tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
                        pseudocount = min(mat[mat>0]))
 
 # Collapse into Genus level
@@ -87,7 +87,7 @@ tse_sglt <- tse_genus[ , colData(tse_genus)$Medication == "SGLT-2"]
 # GLP-1-RA
 
 ## Gather top taxa (present in at least 10 samples)
-tse_glp <- transformCounts(tse_glp, method = "pa")
+tse_glp <- transformAssay(tse_glp, method = "pa")
 glp_top_taxa <- names(rowSums(assay(tse_glp, "pa")))[rowSums(assay(tse_glp, "pa")) > 10]
 
 # Clean and transform relative abundance data corresponding to most prevalent genera
@@ -112,7 +112,7 @@ glp_genera_comparisons <- assay(tse_glp, "clr") %>%
 
 
 # Remove duplicate genera
-glp_top_taxa2 <- glp_top_taxa[!(glp_top_taxa %in% c("uncultured", "uncultured_1"))]
+# glp_top_taxa2 <- glp_top_taxa[!(glp_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
 glp_results_estimates <- tibble(x = 1:128) %>% 
@@ -226,7 +226,7 @@ glp_da_ttest_BH <- bind_cols(glp_da_estim, glp_da_pvalues)
 # SGLT-2
 
 ## Gather top taxa (present in at least 10 samples)
-tse_sglt <- transformCounts(tse_sglt, method = "pa")
+tse_sglt <- transformAssay(tse_sglt, method = "pa")
 sglt_top_taxa <- names(rowSums(assay(tse_sglt, "pa")))[rowSums(assay(tse_sglt, "pa")) > 10]
 
 # Clean and transform relative abundance data corresponding to most prevalent genera
@@ -251,7 +251,7 @@ sglt_genera_comparisons <- assay(tse_sglt, "clr") %>%
 # Perform repeated measures ANOVA
 
 # Remove duplicate genera
-sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
+# sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
 sglt_results_da <- tibble(x = 1:147) %>% 
@@ -366,6 +366,13 @@ t_test_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 # 
 # #B9C7E2FF #ECAB99FF #F1C100FF #5B6530FF #9484B1FF 
 
+# Add a medication facet label
+glp_med_string <- replicate(4480, "GLP-1-RA")
+
+# Add this string as a column to a data frame
+glp_genera_comparisons <- glp_genera_comparisons %>% 
+  mutate(Medication = glp_med_string)
+
 glp_da_plot_rb <- glp_genera_comparisons %>% 
   filter(Genus == "Romboutsia") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
@@ -373,15 +380,16 @@ glp_da_plot_rb <- glp_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  facet_wrap(~Genus, scales = "free") +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_grid(Medication~Genus, scales = "free", switch = "y") +
   ggsignif::geom_signif(
     y_position = c(6.2, 7.0, 7.8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.67", "0.59", "0.11"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "", 
        y = "CLR") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text.x = element_text(size = 12, face = "italic"),
+        strip.text.y = element_text(size = 12))
 
 glp_da_plot_im <- glp_genera_comparisons %>% 
   filter(Genus == "Intestinimonas") %>%
@@ -390,14 +398,14 @@ glp_da_plot_im <- glp_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
     y_position = c(6, 7, 8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.77", "0.9", "0.55"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = NULL) +
+       y = "") +
   theme(strip.text = element_text(size = 12, face = "italic"))
 
 glp_da_plot_hf <- glp_genera_comparisons %>% 
@@ -407,13 +415,14 @@ glp_da_plot_hf <- glp_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
     y_position = c(35, 39, 43), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.17", "0.16", "0.34"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(y = "") +
+  labs(x = "",
+       y = "") +
   theme(strip.text = element_text(size = 12, face = "italic"))
 
 glp_da_plot_mb <- glp_genera_comparisons %>% 
@@ -423,14 +432,14 @@ glp_da_plot_mb <- glp_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
     y_position = c(8, 9, 10), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.2", "0.16", "0.67"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = NULL) +
+       y = "") +
   theme(strip.text = element_text(size = 12, face = "italic"))
 
 glp_da_plot_rt <- glp_genera_comparisons %>% 
@@ -440,14 +449,14 @@ glp_da_plot_rt <- glp_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
     y_position = c(13, 15, 17), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.03", "0.36", "0.86"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = NULL) +
+       y = "") +
   theme(strip.text = element_text(size = 12, face = "italic"))
 
 glp_da <- ggpubr::ggarrange(glp_da_plot_rb, glp_da_plot_im, 
@@ -460,6 +469,13 @@ glp_da <- ggpubr::ggarrange(glp_da_plot_rb, glp_da_plot_im,
 # paletteer::paletteer_d("calecopal::bixby")
 # #286A81FF #045CB4FF #7F6F43FF #748B75FF #B8B196FF
 
+# Add a medication facet label
+sglt_med_string <- replicate(14896, "SGLT-2")
+
+# Add this string as a column to a data frame
+sglt_genera_comparisons <- sglt_genera_comparisons %>% 
+  mutate(Medication = sglt_med_string)
+
 sglt_da_plot_as <- sglt_genera_comparisons %>% 
   filter(Genus == "Alistipes") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
@@ -467,8 +483,8 @@ sglt_da_plot_as <- sglt_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  facet_wrap(~Genus, scales = "free") +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_grid(Medication~Genus, scales = "free", switch = "y") +
   ggsignif::geom_signif(
     y_position = c(40, 45, 50), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.18", "0.19", "0.97"), tip_length = 0.02) +
@@ -476,7 +492,8 @@ sglt_da_plot_as <- sglt_genera_comparisons %>%
   labs(x = "",
        y = "CLR") +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text.x = element_text(size = 12, face = "italic"),
+        strip.text.y = element_text(size = 12))
 
 sglt_da_plot_cc <- sglt_genera_comparisons %>% 
   filter(Genus == "Coprococcus 2") %>% 
@@ -485,7 +502,7 @@ sglt_da_plot_cc <- sglt_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
     y_position = c(16, 18, 20), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
@@ -503,7 +520,7 @@ sglt_da_plot_im <- sglt_genera_comparisons %>%
   guides(fill = "none") + 
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
     y_position = c(13, 15, 17), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
@@ -521,14 +538,14 @@ sglt_da_plot_tb <- sglt_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") + 
   ggsignif::geom_signif(
     y_position = c(17, 20, 23), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.46", "0.35", "0.08"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = NULL) +
+       y = "") +
   guides(fill = "none") +
   theme(strip.text = element_text(size = 12, face = "italic"))
 
@@ -540,16 +557,16 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   facet_wrap(~Genus, scales = "free") +
   ggsignif::geom_signif(
     y_position = c(8, 9, 10), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.4", "0.05", "0.21"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = NULL) +
+       y = "") +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12))
 
 sglt_da <- ggpubr::ggarrange(sglt_da_plot_as, sglt_da_plot_cc, 
                              sglt_da_plot_im, sglt_da_plot_tb,

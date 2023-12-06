@@ -643,7 +643,7 @@ sglt_PC1_plot <- sglt_beta_data %>%
   geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(x = NULL,
+  labs(x = "",
        y = "Value") +
   guides(fill = "none") +
   ggsignif::geom_signif(

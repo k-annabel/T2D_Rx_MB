@@ -546,7 +546,8 @@ glp_alpha_observed <- glp_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(90, 95, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.68", "0.37", "0.29"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12),
+        strip.text.y = element_text(size = 12))
 
 
 glp_alpha_shannon <- glp_alpha_data %>% 
@@ -612,7 +613,8 @@ sglt_alpha_observed <- sglt_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(102, 106, 110), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.87", "0.58", "0.93"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12),
+        strip.text.y = element_text(size = 12))
 
 sglt_alpha_shannon <- sglt_alpha_data %>% 
   filter(alpha_div == "Shannon") %>% 
