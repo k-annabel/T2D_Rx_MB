@@ -723,4 +723,4 @@ sglt_beta_comb <- ggpubr::ggarrange(sglt_PC1_plot, sglt_PC2_plot, sglt_PC3_plot,
 beta_comb <- ggpubr::ggarrange(glp_beta_comb, sglt_beta_comb, 
                                 nrow = 2, ncol = 1)
 
-ggsave("combined_beta_plot.png", device = "png", dpi = 300, width = 12, height = 11)
+ggsave("combined_beta_plot.svg", device = "svg", dpi = 300, width = 12, height = 11)
