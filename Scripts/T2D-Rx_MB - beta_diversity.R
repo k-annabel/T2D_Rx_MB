@@ -552,7 +552,11 @@ glp_PC1_plot <- glp_beta_data %>%
     y_position = c(135, 160, 185), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.25", "0.16", "0.28"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12),
+        strip.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
 
 glp_PC2_plot <- glp_beta_data %>% 
   filter(beta_div == "PC2") %>% 
@@ -569,7 +573,10 @@ glp_PC2_plot <- glp_beta_data %>%
     y_position = c(70, 85, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.70", "0.99", "0.73"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_PC3_plot <- glp_beta_data %>% 
   filter(beta_div == "PC3") %>% 
@@ -586,7 +593,10 @@ glp_PC3_plot <- glp_beta_data %>%
     y_position = c(75, 90, 105), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.9", "0.43", "0.3"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_PC4_plot <- glp_beta_data %>% 
   filter(beta_div == "PC4") %>% 
@@ -649,7 +659,11 @@ sglt_PC1_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(110, 130, 150), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.7", "0.06", "0.32"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12),
+        strip.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
 
 sglt_PC2_plot <- sglt_beta_data %>% 
   filter(beta_div == "PC2") %>% 
@@ -666,7 +680,10 @@ sglt_PC2_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(80, 100, 120), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.56", "0.41", "0.3"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_PC3_plot <- sglt_beta_data %>% 
   filter(beta_div == "PC3") %>% 
@@ -683,7 +700,10 @@ sglt_PC3_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(70, 90, 110), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.9", "0.43", "0.3"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_PC4_plot <- sglt_beta_data %>% 
   filter(beta_div == "PC4") %>% 

@@ -389,7 +389,10 @@ glp_da_plot_rb <- glp_genera_comparisons %>%
   labs(x = "", 
        y = "CLR") +
   theme(strip.text.x = element_text(size = 12, face = "italic"),
-        strip.text.y = element_text(size = 12))
+        strip.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 12))
 
 glp_da_plot_im <- glp_genera_comparisons %>% 
   filter(Genus == "Intestinimonas") %>%
@@ -406,7 +409,9 @@ glp_da_plot_im <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_da_plot_hf <- glp_genera_comparisons %>% 
   filter(Genus == "Haemophilus") %>% 
@@ -423,7 +428,9 @@ glp_da_plot_hf <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_da_plot_mb <- glp_genera_comparisons %>% 
   filter(Genus == "Marvinbryantia") %>% 
@@ -440,7 +447,9 @@ glp_da_plot_mb <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_da_plot_rt <- glp_genera_comparisons %>% 
   filter(Genus == "Rothia") %>% 
@@ -457,7 +466,9 @@ glp_da_plot_rt <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_da <- ggpubr::ggarrange(glp_da_plot_rb, glp_da_plot_im, 
                             glp_da_plot_hf, 
@@ -493,7 +504,9 @@ sglt_da_plot_as <- sglt_genera_comparisons %>%
        y = "CLR") +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12, face = "italic"),
-        strip.text.y = element_text(size = 12))
+        strip.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_da_plot_cc <- sglt_genera_comparisons %>% 
   filter(Genus == "Coprococcus 2") %>% 
@@ -511,7 +524,9 @@ sglt_da_plot_cc <- sglt_genera_comparisons %>%
   labs(x = "", 
        y = "") +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12, face = "italic"), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12))
 
 sglt_da_plot_im <- sglt_genera_comparisons %>% 
   filter(Genus == "Intestinimonas") %>% 
@@ -528,7 +543,10 @@ sglt_da_plot_im <- sglt_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(y = "") +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.title.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 
 sglt_da_plot_tb <- sglt_genera_comparisons %>% 
@@ -547,7 +565,9 @@ sglt_da_plot_tb <- sglt_genera_comparisons %>%
   labs(x = "",
        y = "") +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12, face = "italic"))
+  theme(strip.text = element_text(size = 12, face = "italic"), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 
 sglt_da_plot_dt <- sglt_genera_comparisons %>% 
@@ -566,7 +586,9 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
   labs(x = "",
        y = "") +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_da <- ggpubr::ggarrange(sglt_da_plot_as, sglt_da_plot_cc, 
                              sglt_da_plot_im, sglt_da_plot_tb,
