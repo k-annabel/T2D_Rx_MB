@@ -598,3 +598,4 @@ sglt_da <- ggpubr::ggarrange(sglt_da_plot_as, sglt_da_plot_cc,
 combined_da_plot <- ggpubr::ggarrange(glp_da, sglt_da, nrow = 2, ncol = 1)
 
 ggsave("combined_da_plot.svg", device = "svg", width = 18, height = 11)
+
