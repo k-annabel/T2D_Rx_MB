@@ -656,4 +656,4 @@ sglt_alpha_comb <- ggpubr::ggarrange(sglt_alpha_observed, sglt_alpha_shannon,
 alpha_comb <- ggpubr::ggarrange(glp_alpha_comb, sglt_alpha_comb, 
                                 nrow = 2, ncol = 1)
 
-ggsave("combined_alpha_plot.svg", device = "svg", dpi = 300, width = 12, height = 11)
+ggsave("combined_alpha_plot.svg", device = "svg", dpi = 300, width = 8, height = 11)
