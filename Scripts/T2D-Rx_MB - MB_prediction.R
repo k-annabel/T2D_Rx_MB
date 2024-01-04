@@ -210,8 +210,18 @@ ggplot(glp_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
   geom_tile(colour = "black") +
   scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"), limits = c(-1,1)) +
   coord_fixed() +
-  geom_text(aes(label = round(p_if_sig_BH,3)), colour = "white", size = 3) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
+  #geom_text(aes(label = round(p_if_sig_BH,3)), colour = "white", size = 3) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  annotate("point", x = 0.85, y = 4, shape = "*", size = 7, colour = "black") +
+  annotate("point", x = 1.1, y = 4, shape = "*", size = 7, colour = "black") +
+  annotate("point", x = 1, y = 5, shape = "*", size = 7, colour = "black") +
+  annotate("point", x = 1, y = 6, shape = "*", size = 7, colour = "black") +
+  scale_x_discrete(labels = c("Alistipes", "Bacteroides", "Blautia", "Dorea",
+                   "PC1", "PC2", "PC3", "PC4", "PC5", "Roseburia")) +
+  scale_y_discrete(labels = c("BMI", "HbA1c", "Lymphocytes", "Neutrophils", "NLR", "WBC")) +
+  labs(x = "Baseline MB parameter", 
+       y = "Change in clinical parameter")
+  
 
 
 # SGLT-2
