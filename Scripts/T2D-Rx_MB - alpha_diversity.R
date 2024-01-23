@@ -368,6 +368,9 @@ anova_alpha_results <- cbind(glp_anova_alpha_results, sglt_anova_alpha_results)
 
 t_test_alpha_results <- cbind(glp_alpha_ttest_BH, sglt_alpha_ttest_BH)
 
+# writexl::write_xlsx(anova_alpha_results, "anova_alpha_results.xlsx")
+# writexl::write_xlsx(t_test_alpha_results, "t_test_alpha_results.xlsx")
+
 # ___________________________________________________________________________ #
 
 # Visualize the results

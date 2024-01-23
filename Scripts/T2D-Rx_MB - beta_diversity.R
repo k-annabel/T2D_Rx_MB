@@ -102,8 +102,12 @@ glp_beta_raw <- data.frame(pca_glp$x[ , 1:5],
 ### Create a list for beta diversity indices
 beta_div <- c("PC1", "PC2", "PC3", "PC4", "PC5")
 
-### Create a tibble for results
-glp_beta_anova_results <- tibble(x = 1:5) %>% 
+### Create a tibble for general effect sizes (ges)
+glp_beta_anova_ges <- tibble(x = 1:5) %>% 
+  add_column(beta_div, .before = "x") %>% 
+  dplyr::rename(ges = x)
+
+glp_beta_anova_pvalues <- tibble(x = 1:5) %>% 
   add_column(beta_div, .before = "x") %>% 
   dplyr::rename(p_value = x)
 
@@ -125,11 +129,17 @@ for (j in 1:length(beta_div)){
   
   model_glp <- rstatix::anova_test(data = glp_beta_test, dv = value, wid = PatientID, within = Timepoint)
   
-  glp_beta_anova_results$p_value[j] <- model_glp$ANOVA$p
+  glp_beta_anova_ges$ges[j] <- model_glp$ANOVA$ges
+  glp_beta_anova_pvalues$p_value[j] <- model_glp$ANOVA$p
+  
+  glp_beta_anova_results <- cbind(glp_beta_anova_ges, glp_beta_anova_pvalues)
   
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+
+glp_beta_anova_results <- glp_beta_anova_results[-3]
+
 glp_anova_beta_results <- glp_beta_anova_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
@@ -223,8 +233,12 @@ sglt_beta_raw <- data.frame(pca_sglt$x[ , 1:5],
 ### Create a list for beta diversity indices
 beta_div <- c("PC1", "PC2", "PC3", "PC4", "PC5")
 
-### Create a tibble for results
-sglt_beta_anova_results <- tibble(x = 1:5) %>% 
+### Create a tibble for general effect sizes (ges)
+sglt_beta_anova_ges <- tibble(x = 1:5) %>% 
+  add_column(beta_div, .before = "x") %>% 
+  dplyr::rename(ges = x)
+
+sglt_beta_anova_pvalues <- tibble(x = 1:5) %>% 
   add_column(beta_div, .before = "x") %>% 
   dplyr::rename(p_value = x)
 
@@ -246,11 +260,17 @@ for (j in 1:length(beta_div)){
   
   model_sglt <- rstatix::anova_test(data = sglt_beta_test, dv = value, wid = PatientID, within = Timepoint)
   
-  sglt_beta_anova_results$p_value[j] <- model_sglt$ANOVA$p
+  sglt_beta_anova_ges$ges[j] <- model_sglt$ANOVA$ges
+  sglt_beta_anova_pvalues$p_value[j] <- model_sglt$ANOVA$p
+  
+  sglt_beta_anova_results <- cbind(sglt_beta_anova_ges, sglt_beta_anova_pvalues)
   
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
+
+sglt_beta_anova_results <- sglt_beta_anova_results[-3]
+
 sglt_anova_beta_results <- sglt_beta_anova_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
@@ -327,8 +347,10 @@ sglt_beta_ttest_BH <- sglt_beta_ttest_results %>%
 
 beta_anova_results <- cbind(glp_anova_beta_results, sglt_anova_beta_results)
 
-t_test_alpha_results <- cbind(glp_beta_ttest_BH, sglt_beta_ttest_BH)
-## Cannot combine them - tested PC2 and PC5 only for SGLT-2 (ANOVA < 0.05)
+t_test_beta_results <- cbind(glp_beta_ttest_BH, sglt_beta_ttest_BH)
+
+# writexl::write_xlsx(beta_anova_results, "anova_beta_results.xlsx")
+# writexl::write_xlsx(t_test_beta_results, "t_test_beta_results.xlsx")
 
 # ___________________________________________________________________________ #
 

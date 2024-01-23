@@ -114,21 +114,14 @@ glp_genera_comparisons <- assay(tse_glp, "clr") %>%
 # Remove duplicate genera
 # glp_top_taxa2 <- glp_top_taxa[!(glp_top_taxa %in% c("uncultured", "uncultured_1"))]
 
-# Create a tibble for results
-glp_results_estimates <- tibble(x = 1:128) %>% 
-  rownames_to_column(var = "Genus") %>% 
-  dplyr::rename(p_value = x) %>% 
-  add_column(glp_top_taxa, .before = "p_value") %>% 
-  select(-Genus) %>% 
-  dplyr::rename(Genus = glp_top_taxa)
+# Create tibbles for results
+glp_da_anova_ges <- tibble(x = 1:128) %>% 
+  add_column(glp_top_taxa, .before = "x") %>% 
+  dplyr::rename(ges = x)
 
-glp_results_pvalue <- tibble(x = 1:128) %>% 
-  rownames_to_column(var = "Genus") %>% 
-  dplyr::rename(p_value = x) %>% 
-  add_column(glp_top_taxa, .before = "p_value") %>% 
-  select(-Genus) %>% 
-  dplyr::rename(Genus = glp_top_taxa)
-
+glp_da_anova_pvalues <- tibble(x = 1:128) %>% 
+  add_column(glp_top_taxa, .before = "x") %>% 
+  dplyr::rename(p_value = x)
 
 # Execute the for-loop for repeated measures ANOVA
 
@@ -146,13 +139,19 @@ for (j in 1:length(glp_top_taxa)){
   #GLP-1-RA
   model_glp <- rstatix::anova_test(data = df_glp, dv = clr, wid = PatientID, within = Timepoint)
   
-  glp_results_da$p_value[j] <- model_glp$ANOVA$p
+  glp_da_anova_ges$ges[j] <- model_glp$ANOVA$ges
+  glp_da_anova_pvalues$p_value[j] <- model_glp$ANOVA$p
+  
+  glp_da_anova_results_raw <- cbind(glp_da_anova_ges, glp_da_anova_pvalues)
   
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-glp_anova_da_results <- glp_results_da %>% 
-  filter(p_value < 0.05) %>% 
+
+glp_da_anova_results <- glp_da_anova_results_raw[-3]
+
+glp_anova_da_results_BH <- glp_da_anova_results %>% 
+  filter(p_value <= 0.05) %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
@@ -163,12 +162,11 @@ glp_anova_da_results <- glp_results_da %>%
 timepoints <- c("II", "III", "IV")
 
 ### Pull five significant genera
-glp_anova_genera <- glp_results_da %>% 
-  filter(p_value < 0.05) %>% 
-  pull(Genus)
+glp_anova_genera <- glp_anova_da_results_BH %>% 
+  pull(glp_top_taxa)
 
 ### Make a tibble for estimates
-glp_da_ttest_estimates <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+glp_da_ttest_estimates <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
   add_column(glp_anova_genera, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -176,7 +174,7 @@ glp_da_ttest_estimates <- tibble(x = 1:5, y = 1:5, z = 1:5) %>%
   column_to_rownames(var = "glp_anova_genera")
 
 ### Make a tibble for p-values
-glp_da_ttest_pvalues <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+glp_da_ttest_pvalues <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
   add_column(glp_anova_genera, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -254,12 +252,13 @@ sglt_genera_comparisons <- assay(tse_sglt, "clr") %>%
 # sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
-sglt_results_da <- tibble(x = 1:147) %>% 
-  rownames_to_column(var = "Genus") %>% 
-  dplyr::rename(p_value = x) %>% 
-  add_column(sglt_top_taxa, .before = "p_value") %>% 
-  select(-Genus) %>% 
-  dplyr::rename(Genus = sglt_top_taxa)
+sglt_da_anova_ges <- tibble(x = 1:147) %>% 
+  add_column(sglt_top_taxa, .before = "x") %>% 
+  dplyr::rename(ges = x)
+
+sglt_da_anova_pvalues <- tibble(x = 1:147) %>% 
+  add_column(sglt_top_taxa, .before = "x") %>% 
+  dplyr::rename(p_value = x)
 
 # Execute the for-loop for repeated measures ANOVA
 
@@ -277,13 +276,19 @@ for (j in 1:length(sglt_top_taxa)){
   #SGLT-2
   model_sglt <- rstatix::anova_test(data = df_sglt, dv = clr, wid = PatientID, within = Timepoint)
   
-  sglt_results_da$p_value[j] <- model_sglt$ANOVA$p
+  sglt_da_anova_ges$ges[j] <- model_sglt$ANOVA$ges
+  sglt_da_anova_pvalues$p_value[j] <- model_sglt$ANOVA$p
+  
+  sglt_da_anova_results_raw <- cbind(sglt_da_anova_ges, sglt_da_anova_pvalues)
   
 }
 
 ### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-sglt_anova_da_results <- sglt_results_da %>% 
-  filter(p_value <= 0.05) %>% 
+
+sglt_da_anova_results <- sglt_da_anova_results_raw[-3]
+
+sglt_anova_da_results_BH <- sglt_da_anova_results %>% 
+  filter(p_value <= 0.057) %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # Perform t-tests
@@ -292,12 +297,11 @@ sglt_anova_da_results <- sglt_results_da %>%
 timepoints <- c("II", "III", "IV")
 
 # Pull five significant genera
-sglt_anova_genera <- sglt_results_da %>% 
-  filter(p_value <= 0.05) %>% 
-  pull(Genus)
+sglt_anova_genera <- sglt_anova_da_results_BH %>% 
+  pull(sglt_top_taxa)
 
 ### Make a tibble for estimates
-sglt_da_ttest_estimates <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+sglt_da_ttest_estimates <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
   add_column(sglt_anova_genera, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -305,7 +309,7 @@ sglt_da_ttest_estimates <- tibble(x = 1:5, y = 1:5, z = 1:5) %>%
   column_to_rownames(var = "sglt_anova_genera")
 
 ### Make a tibble for p-values
-sglt_da_ttest_pvalues <- tibble(x = 1:5, y = 1:5, z = 1:5) %>% 
+sglt_da_ttest_pvalues <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
   add_column(sglt_anova_genera, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -357,6 +361,9 @@ sglt_da_ttest_BH <- bind_cols(sglt_da_estim, sglt_da_pvalues)
 anova_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
 t_test_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
+
+# writexl::write_xlsx(anova_da_results, "anova_da_results.xlsx")
+# writexl::write_xlsx(t_test_da_results, "t_test_da_results.xlsx")
 
 # ___________________________________________________________________________ #
 
