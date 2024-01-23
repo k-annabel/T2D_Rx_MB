@@ -626,15 +626,19 @@ glp_PC4_plot <- glp_beta_data %>%
   scale_fill_manual(values = "#669ABFFF") +
   facet_grid(.~beta_div, switch = "y", scale = "free") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(60, 65, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(60, 70, 80), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.58", "0.52", "0.42"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme_classic()
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_PC5_plot <- glp_beta_data %>% 
   filter(beta_div == "PC5") %>% 
@@ -642,18 +646,22 @@ glp_PC5_plot <- glp_beta_data %>%
   scale_fill_manual(values = "#669ABFFF") +
   facet_grid(.~beta_div, switch = "y", scale = "free") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(60, 65, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(60, 70, 80), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.32", "0.44", "0.51"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme_classic()
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_beta_comb <- ggpubr::ggarrange(glp_PC1_plot, glp_PC2_plot, glp_PC3_plot, 
-                                   nrow = 1, ncol = 3)
+                                   glp_PC4_plot, glp_PC5_plot, nrow = 1, ncol = 5)
 
 ## SGLT-2
 
@@ -733,6 +741,7 @@ sglt_PC4_plot <- sglt_beta_data %>%
   scale_fill_manual(values = "#669ABFFF") +
   facet_grid(.~beta_div, switch = "y", scale = "free") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
@@ -741,7 +750,10 @@ sglt_PC4_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(50, 60, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.77", "0.95", "0.35"), tip_length = 0.02) +
-  theme_classic()
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_PC5_plot <- sglt_beta_data %>% 
   filter(beta_div == "PC5") %>% 
@@ -749,6 +761,7 @@ sglt_PC5_plot <- sglt_beta_data %>%
   scale_fill_manual(values = "#669ABFFF") +
   facet_grid(.~beta_div, switch = "y", scale = "free") +
   geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
@@ -757,12 +770,15 @@ sglt_PC5_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(30, 40, 50), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.53", "0.008", "0.08"), tip_length = 0.02) +
-  theme_classic()
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_beta_comb <- ggpubr::ggarrange(sglt_PC1_plot, sglt_PC2_plot, sglt_PC3_plot,
-                                    nrow = 1, ncol = 3)
+                                    sglt_PC4_plot, sglt_PC5_plot, nrow = 1, ncol = 5)
 
 beta_comb <- ggpubr::ggarrange(glp_beta_comb, sglt_beta_comb, 
                                 nrow = 2, ncol = 1)
 
-ggsave("combined_beta_plot.svg", device = "svg", dpi = 300, width = 12, height = 11)
+ggsave("combined_beta_plot.svg", device = "svg", dpi = 300, width = 15, height = 11)
