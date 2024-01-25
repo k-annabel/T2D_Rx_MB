@@ -158,6 +158,8 @@ glp_anova_da_results_BH <- glp_da_anova_results %>%
 
 # Perform t-tests for five significant genera in ANOVA results
 
+# 25.01.24 - the genera for GLP-1-RA are different now ....
+
 ### Initialize empty vector for results
 timepoints <- c("II", "III", "IV")
 
@@ -369,9 +371,9 @@ t_test_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
 # Visualize results for significant genera after ANOVA
 
-# paletteer::paletteer_d("calecopal::superbloom1")
+# paletteer::paletteer_d("calecopal::bigsur2")
 # 
-# #B9C7E2FF #ECAB99FF #F1C100FF #5B6530FF #9484B1FF 
+# #20618DFF #91AAC4FF #6B6C58FF #464724FF #83932DFF #CAB89FFF 
 
 # Add a medication facet label
 glp_med_string <- replicate(4480, "GLP-1-RA")
@@ -383,7 +385,7 @@ glp_genera_comparisons <- glp_genera_comparisons %>%
 glp_da_plot_rb <- glp_genera_comparisons %>% 
   filter(Genus == "Romboutsia") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#B9C7E2FF") +
+  scale_fill_manual(values = "#20618DFF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -400,6 +402,115 @@ glp_da_plot_rb <- glp_genera_comparisons %>%
         axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12),
         axis.title.y = element_text(size = 12))
+
+# Patient GLP1RA-10 is driving the CLR-values up madly - leave out?
+glp_da_plot_sl <- glp_genera_comparisons %>% 
+  filter(Genus == "Slackia") %>%
+  #filter(PatientID != "GLP1RA-10") %>% 
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#91AAC4FF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(30, 32, 34), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.85", "0.94", "0.08"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+
+glp_da_plot_fb <- glp_genera_comparisons %>% 
+  filter(Genus == "Fusobacterium") %>%
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#6B6C58FF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(20, 22, 24), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.84", "0.21", "0.08"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+
+glp_da_plot_vl <- glp_genera_comparisons %>% 
+  filter(Genus == "Veillonella") %>%
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#464724FF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(10, 12, 14), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.05", "0.03", "0.55"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+
+
+glp_da_plot_pb <- glp_genera_comparisons %>% 
+  filter(Genus == "Pseudobutyrivibrio") %>%
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#83932DFF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(15, 17, 19), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.54", "0.11", "0.08"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+
+
+glp_da_plot_cs <- glp_genera_comparisons %>% 
+  filter(Genus == "Candidatus Soleaferrea") %>%
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#CAB89FFF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(10, 11, 12), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.54", "0.11", "0.08"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "",
+       y = "") +
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+
+
+glp_da <- ggpubr::ggarrange(glp_da_plot_rb, glp_da_plot_sl, 
+                            glp_da_plot_fb, glp_da_plot_vl, 
+                            glp_da_plot_pb, glp_da_plot_cs,
+                            ncol = 6, nrow = 1)
+
+
+
+# ????? ______________________________________________________________________ #
 
 glp_da_plot_im <- glp_genera_comparisons %>% 
   filter(Genus == "Intestinimonas") %>%
@@ -535,6 +646,26 @@ sglt_da_plot_cc <- sglt_genera_comparisons %>%
         axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12))
 
+sglt_da_plot_bs <- sglt_genera_comparisons %>% 
+  filter(Genus == "Barnesiella") %>% 
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#4C4976FF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(20, 23, 26), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.64", "0.32", "0.91"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "", 
+       y = "") +
+  guides(fill = "none") +
+  theme(strip.text = element_text(size = 12, face = "italic"), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12))
+
 sglt_da_plot_im <- sglt_genera_comparisons %>% 
   filter(Genus == "Intestinimonas") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
@@ -580,7 +711,7 @@ sglt_da_plot_tb <- sglt_genera_comparisons %>%
 sglt_da_plot_dt <- sglt_genera_comparisons %>% 
   filter(Genus == "DTU089") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#B8B196FF") +
+  scale_fill_manual(values = "#ECBD95FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -597,10 +728,10 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
-sglt_da <- ggpubr::ggarrange(sglt_da_plot_as, sglt_da_plot_cc, 
+sglt_da <- ggpubr::ggarrange(sglt_da_plot_as, sglt_da_plot_cc, sglt_da_plot_bs,
                              sglt_da_plot_im, sglt_da_plot_tb,
                              sglt_da_plot_dt,
-                             ncol = 5, nrow = 1)
+                             ncol = 6, nrow = 1)
 
 combined_da_plot <- ggpubr::ggarrange(glp_da, sglt_da, nrow = 2, ncol = 1)
 
