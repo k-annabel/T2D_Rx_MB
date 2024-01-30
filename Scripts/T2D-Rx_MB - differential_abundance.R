@@ -360,7 +360,7 @@ sglt_da_ttest_BH <- bind_cols(sglt_da_estim, sglt_da_pvalues)
 
 # Summary results
 
-anova_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
+anova_da_results <- bind_cols(glp_anova_da_results_BH, sglt_anova_da_results_BH)
 
 t_test_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
