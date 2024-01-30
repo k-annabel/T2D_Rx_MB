@@ -549,8 +549,10 @@ glp_alpha_observed <- glp_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(90, 95, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.68", "0.37", "0.29"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12),
-        strip.text.y = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 
 glp_alpha_shannon <- glp_alpha_data %>% 
@@ -568,27 +570,33 @@ glp_alpha_shannon <- glp_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(3.6, 3.8, 4.0), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.47", "0.12", "0.51"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_alpha_pielou <- glp_alpha_data %>% 
   filter(alpha_div == "Pielou") %>% 
   ggplot(aes(x = Timepoint, y = value, fill = alpha_div)) +
-  facet_grid(.~alpha_div, switch = "y", scales = "free") +
   scale_fill_manual(values = "#7AD151FF") +
+  facet_grid(.~alpha_div, switch = "y", scales = "free") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  guides(fill = "none") +
   labs(x = "",
        y = "") +
-  guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(0.85, 0.9, 0.95), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.5", "0.07", "0.67"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
-glp_alpha_comb <- ggpubr::ggarrange(glp_alpha_observed, glp_alpha_shannon,
-                                    nrow = 1, ncol = 2)
+glp_alpha_comb <- ggpubr::ggarrange(glp_alpha_observed, glp_alpha_shannon, glp_alpha_pielou, 
+                                    nrow = 1, ncol = 3)
 
 ## SGLT-2
 
@@ -616,8 +624,10 @@ sglt_alpha_observed <- sglt_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(102, 106, 110), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.87", "0.58", "0.93"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12),
-        strip.text.y = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_alpha_shannon <- sglt_alpha_data %>% 
   filter(alpha_div == "Shannon") %>% 
@@ -634,7 +644,10 @@ sglt_alpha_shannon <- sglt_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(3.6, 3.7, 3.8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.55", "0.68", "0.08"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_alpha_pielou <- sglt_alpha_data %>% 
   filter(alpha_div == "Pielou") %>% 
@@ -651,12 +664,15 @@ sglt_alpha_pielou <- sglt_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(0.82, 0.84, 0.86), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.53", "0.71", "0.08"), tip_length = 0.02) +
-  theme(strip.text = element_text(size = 12))
+  theme(strip.text.x = element_text(size = 12), 
+        strip.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
-sglt_alpha_comb <- ggpubr::ggarrange(sglt_alpha_observed, sglt_alpha_shannon,
-                                     nrow = 1, ncol = 2)
+sglt_alpha_comb <- ggpubr::ggarrange(sglt_alpha_observed, sglt_alpha_shannon, sglt_alpha_pielou,
+                                     nrow = 1, ncol = 3)
 
 alpha_comb <- ggpubr::ggarrange(glp_alpha_comb, sglt_alpha_comb, 
                                 nrow = 2, ncol = 1)
 
-ggsave("combined_alpha_plot.svg", device = "svg", dpi = 300, width = 8, height = 11)
+ggsave("combined_alpha_plot_full.svg", device = "svg", dpi = 300, width = 11, height = 11)
