@@ -151,7 +151,6 @@ for (j in 1:length(glp_top_taxa)){
 glp_da_anova_results <- glp_da_anova_results_raw[-3]
 
 glp_anova_da_results_BH <- glp_da_anova_results %>% 
-  filter(p_value <= 0.05) %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # ___________________________________________________________________________ #
@@ -168,26 +167,26 @@ glp_anova_genera <- glp_anova_da_results_BH %>%
   pull(glp_top_taxa)
 
 ### Make a tibble for estimates
-glp_da_ttest_estimates <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
-  add_column(glp_anova_genera, .before = "x") %>% 
+glp_da_ttest_estimates <- tibble(x = 1:128, y = 1:128, z = 1:128) %>% 
+  add_column(glp_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
                 IV = z) %>% 
-  column_to_rownames(var = "glp_anova_genera")
+  column_to_rownames(var = "glp_top_taxa")
 
 ### Make a tibble for p-values
-glp_da_ttest_pvalues <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
-  add_column(glp_anova_genera, .before = "x") %>% 
+glp_da_ttest_pvalues <- tibble(x = 1:128, y = 1:128, z = 1:128) %>% 
+  add_column(glp_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
                 IV = z) %>% 
-  column_to_rownames(var = "glp_anova_genera")
+  column_to_rownames(var = "glp_top_taxa")
 
 
-for (j in 1:length(glp_anova_genera)){
+for (j in 1:length(glp_top_taxa)){
   
   temp_data <- glp_genera_comparisons %>% 
-    filter(Genus == glp_anova_genera[j])
+    filter(Genus == glp_top_taxa[j])
   
   for (i in 1:length(timepoints)){
     df_glp <- temp_data %>% 
@@ -202,8 +201,8 @@ for (j in 1:length(glp_anova_genera)){
     da_results_glp <- da_test_glp_raw %>% 
       broom::tidy()
     
-    glp_da_ttest_estimates[glp_anova_genera[j], timepoints[i]] <- da_results_glp$estimate
-    glp_da_ttest_pvalues[glp_anova_genera[j], timepoints[i]] <- da_results_glp$p.value
+    glp_da_ttest_estimates[glp_top_taxa[j], timepoints[i]] <- da_results_glp$estimate
+    glp_da_ttest_pvalues[glp_top_taxa[j], timepoints[i]] <- da_results_glp$p.value
 
   }
 }
@@ -290,7 +289,6 @@ for (j in 1:length(sglt_top_taxa)){
 sglt_da_anova_results <- sglt_da_anova_results_raw[-3]
 
 sglt_anova_da_results_BH <- sglt_da_anova_results %>% 
-  filter(p_value <= 0.057) %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH"))
 
 # Perform t-tests
@@ -303,25 +301,25 @@ sglt_anova_genera <- sglt_anova_da_results_BH %>%
   pull(sglt_top_taxa)
 
 ### Make a tibble for estimates
-sglt_da_ttest_estimates <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
-  add_column(sglt_anova_genera, .before = "x") %>% 
+sglt_da_ttest_estimates <- tibble(x = 1:147, y = 1:147, z = 1:147) %>% 
+  add_column(sglt_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
                 IV = z) %>% 
-  column_to_rownames(var = "sglt_anova_genera")
+  column_to_rownames(var = "sglt_top_taxa")
 
 ### Make a tibble for p-values
-sglt_da_ttest_pvalues <- tibble(x = 1:6, y = 1:6, z = 1:6) %>% 
-  add_column(sglt_anova_genera, .before = "x") %>% 
+sglt_da_ttest_pvalues <- tibble(x = 1:147, y = 1:147, z = 1:147) %>% 
+  add_column(sglt_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
                 IV = z) %>% 
-  column_to_rownames(var = "sglt_anova_genera")
+  column_to_rownames(var = "sglt_top_taxa")
 
-for (j in 1:length(sglt_anova_genera)){
+for (j in 1:length(sglt_top_taxa)){
   
   temp_data <- sglt_genera_comparisons %>% 
-    filter(Genus == sglt_anova_genera[j])
+    filter(Genus == sglt_top_taxa[j])
   
   for (i in 1:length(timepoints)){
     df_sglt <- temp_data %>% 
@@ -336,8 +334,8 @@ for (j in 1:length(sglt_anova_genera)){
     da_results_sglt <- da_test_sglt_raw %>% 
       broom::tidy()
     
-    sglt_da_ttest_estimates[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$estimate
-    sglt_da_ttest_pvalues[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$p.value
+    sglt_da_ttest_estimates[sglt_top_taxa[j], timepoints[i]] <- da_results_sglt$estimate
+    sglt_da_ttest_pvalues[sglt_top_taxa[j], timepoints[i]] <- da_results_sglt$p.value
     
   }
 }
