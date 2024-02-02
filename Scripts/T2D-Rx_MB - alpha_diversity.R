@@ -60,16 +60,16 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 # ___________________________________________________________________________ #
 
 
-# Convert counts into relative abundances
-tse <- transformCounts(tse, assay.type = "counts", method = "relabundance")
-
-# Convert relative abundances into CLR-transformed values
-mat <- assay(tse, "relabundance")
-tse <- transformCounts(tse, assay.type = "relabundance", method = "clr", 
-                       pseudocount = min(mat[mat>0]))
-
 # Collapse into Genus level
 tse_genus <- agglomerateByRank(tse, rank = "Genus")
+
+# Convert counts into relative abundances
+tse_genus <- transformAssay(tse_genus, assay.type = "counts", method = "relabundance")
+
+# Convert relative abundances into CLR-transformed values
+mat <- assay(tse_genus, "relabundance")
+tse_genus <- transformAssay(tse_genus, assay.type = "relabundance", method = "clr", 
+                       pseudocount = min(mat[mat>0]))
 
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
@@ -548,7 +548,7 @@ glp_alpha_observed <- glp_alpha_data %>%
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(90, 95, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.68", "0.37", "0.29"), tip_length = 0.02) +
+    annotation = c("0.71", "0.39", "0.12"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -569,7 +569,7 @@ glp_alpha_shannon <- glp_alpha_data %>%
        y = "") +
   ggsignif::geom_signif(
     y_position = c(3.6, 3.8, 4.0), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.47", "0.12", "0.51"), tip_length = 0.02) +
+    annotation = c("0.77", "0.28", "0.66"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -589,7 +589,7 @@ glp_alpha_pielou <- glp_alpha_data %>%
        y = "") +
   ggsignif::geom_signif(
     y_position = c(0.85, 0.9, 0.95), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.5", "0.07", "0.67"), tip_length = 0.02) +
+    annotation = c("0.87", "0.26", "0.98"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -623,7 +623,7 @@ sglt_alpha_observed <- sglt_alpha_data %>%
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(102, 106, 110), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.87", "0.58", "0.93"), tip_length = 0.02) +
+    annotation = c("0.63", "0.05", "0.42"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -643,7 +643,7 @@ sglt_alpha_shannon <- sglt_alpha_data %>%
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(3.6, 3.7, 3.8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.55", "0.68", "0.08"), tip_length = 0.02) +
+    annotation = c("0.55", "0.86", "0.19"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -663,7 +663,7 @@ sglt_alpha_pielou <- sglt_alpha_data %>%
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(0.82, 0.84, 0.86), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.53", "0.71", "0.08"), tip_length = 0.02) +
+    annotation = c("0.46", "0.83", "0.10"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
