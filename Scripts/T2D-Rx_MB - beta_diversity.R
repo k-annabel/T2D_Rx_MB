@@ -59,16 +59,16 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 # ___________________________________________________________________________ #
 
 
-# Convert counts into relative abundances
-tse <- transformCounts(tse, assay.type = "counts", method = "relabundance")
-
-# Convert relative abundances into CLR-transformed values
-mat <- assay(tse, "relabundance")
-tse <- transformCounts(tse, assay.type = "relabundance", method = "clr", 
-                       pseudocount = min(mat[mat>0]))
-
 # Collapse into Genus level
 tse_genus <- agglomerateByRank(tse, rank = "Genus")
+
+# Convert counts into relative abundances
+tse_genus <- transformAssay(tse_genus, assay.type = "counts", method = "relabundance")
+
+# Convert relative abundances into CLR-transformed values
+mat <- assay(tse_genus, "relabundance")
+tse_genus <- transformAssay(tse_genus, assay.type = "relabundance", method = "clr", 
+                            pseudocount = min(mat[mat>0]))
 
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
@@ -571,8 +571,8 @@ glp_PC1_plot <- glp_beta_data %>%
   labs(x = "",
        y = "Value") +
   ggsignif::geom_signif(
-    y_position = c(135, 160, 185), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.25", "0.16", "0.28"), tip_length = 0.02) +
+    y_position = c(25, 30, 35), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.74", "0.40", "0.37"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12),
         strip.text.y = element_text(size = 12),
@@ -592,8 +592,8 @@ glp_PC2_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(70, 85, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.70", "0.99", "0.73"), tip_length = 0.02) +
+    y_position = c(25, 30, 35), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.86", "0.68", "0.86"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -612,8 +612,8 @@ glp_PC3_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(75, 90, 105), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.9", "0.43", "0.3"), tip_length = 0.02) +
+    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.68", "0.18", "0.51"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -632,8 +632,8 @@ glp_PC4_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(60, 70, 80), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.58", "0.52", "0.42"), tip_length = 0.02) +
+    y_position = c(15, 20, 25), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.68", "0.61", "0.94"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -652,8 +652,8 @@ glp_PC5_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(60, 70, 80), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.32", "0.44", "0.51"), tip_length = 0.02) +
+    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.90", "0.61", "0.71"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -687,8 +687,8 @@ sglt_PC1_plot <- sglt_beta_data %>%
        y = "Value") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(110, 130, 150), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.7", "0.06", "0.32"), tip_length = 0.02) +
+    y_position = c(40, 50, 60), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.45", "0.23", "0.08"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12),
         strip.text.y = element_text(size = 12),
         axis.text.x = element_text(size = 12),
@@ -708,8 +708,8 @@ sglt_PC2_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(80, 100, 120), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.56", "0.41", "0.3"), tip_length = 0.02) +
+    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.14", "0.005", "0.09"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -728,8 +728,8 @@ sglt_PC3_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(70, 90, 110), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.9", "0.43", "0.3"), tip_length = 0.02) +
+    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.50", "0.20", "0.34"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -748,8 +748,8 @@ sglt_PC4_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(50, 60, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.77", "0.95", "0.35"), tip_length = 0.02) +
+    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.16", "0.70", "0.61"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -768,8 +768,8 @@ sglt_PC5_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(30, 40, 50), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.53", "0.008", "0.08"), tip_length = 0.02) +
+    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.04", "0.62", "0.15"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
