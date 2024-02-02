@@ -59,22 +59,19 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 # ___________________________________________________________________________ #
 
 
-# Convert counts into relative abundances
-tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
-
-# Convert relative abundances into CLR-transformed values
-mat <- assay(tse, "relabundance")
-tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
-                       pseudocount = min(mat[mat>0]))
-
 # Collapse into Genus level
 tse_genus <- agglomerateByRank(tse, rank = "Genus")
 
+# Convert counts into relative abundances
+tse_genus <- transformAssay(tse_genus, assay.type = "counts", method = "relabundance")
+
+# Convert relative abundances into CLR-transformed values
+mat <- assay(tse_genus, "relabundance")
+tse_genus <- transformAssay(tse_genus, assay.type = "relabundance", method = "clr", 
+                            pseudocount = min(mat[mat>0]))
+
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
-
-# Remove taxa with Genus observation empty
-tse_genus <- tse_genus[rowData(tse_genus)$Genus != "", ]
 
 # Separate by medication
 tse_glp <- tse_genus[ , colData(tse_genus)$Medication == "GLP-1-RA"]
@@ -115,11 +112,11 @@ glp_genera_comparisons <- assay(tse_glp, "clr") %>%
 # glp_top_taxa2 <- glp_top_taxa[!(glp_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create tibbles for results
-glp_da_anova_ges <- tibble(x = 1:128) %>% 
+glp_da_anova_ges <- tibble(x = 1:139) %>% 
   add_column(glp_top_taxa, .before = "x") %>% 
   dplyr::rename(ges = x)
 
-glp_da_anova_pvalues <- tibble(x = 1:128) %>% 
+glp_da_anova_pvalues <- tibble(x = 1:139) %>% 
   add_column(glp_top_taxa, .before = "x") %>% 
   dplyr::rename(p_value = x)
 
@@ -167,7 +164,7 @@ glp_anova_genera <- glp_anova_da_results_BH %>%
   pull(glp_top_taxa)
 
 ### Make a tibble for estimates
-glp_da_ttest_estimates <- tibble(x = 1:128, y = 1:128, z = 1:128) %>% 
+glp_da_ttest_estimates <- tibble(x = 1:139, y = 1:139, z = 1:139) %>% 
   add_column(glp_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -175,7 +172,7 @@ glp_da_ttest_estimates <- tibble(x = 1:128, y = 1:128, z = 1:128) %>%
   column_to_rownames(var = "glp_top_taxa")
 
 ### Make a tibble for p-values
-glp_da_ttest_pvalues <- tibble(x = 1:128, y = 1:128, z = 1:128) %>% 
+glp_da_ttest_pvalues <- tibble(x = 1:139, y = 1:139, z = 1:139) %>% 
   add_column(glp_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -253,11 +250,11 @@ sglt_genera_comparisons <- assay(tse_sglt, "clr") %>%
 # sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
 
 # Create a tibble for results
-sglt_da_anova_ges <- tibble(x = 1:147) %>% 
+sglt_da_anova_ges <- tibble(x = 1:163) %>% 
   add_column(sglt_top_taxa, .before = "x") %>% 
   dplyr::rename(ges = x)
 
-sglt_da_anova_pvalues <- tibble(x = 1:147) %>% 
+sglt_da_anova_pvalues <- tibble(x = 1:163) %>% 
   add_column(sglt_top_taxa, .before = "x") %>% 
   dplyr::rename(p_value = x)
 
@@ -301,7 +298,7 @@ sglt_anova_genera <- sglt_anova_da_results_BH %>%
   pull(sglt_top_taxa)
 
 ### Make a tibble for estimates
-sglt_da_ttest_estimates <- tibble(x = 1:147, y = 1:147, z = 1:147) %>% 
+sglt_da_ttest_estimates <- tibble(x = 1:163, y = 1:163, z = 1:163) %>% 
   add_column(sglt_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -309,7 +306,7 @@ sglt_da_ttest_estimates <- tibble(x = 1:147, y = 1:147, z = 1:147) %>%
   column_to_rownames(var = "sglt_top_taxa")
 
 ### Make a tibble for p-values
-sglt_da_ttest_pvalues <- tibble(x = 1:147, y = 1:147, z = 1:147) %>% 
+sglt_da_ttest_pvalues <- tibble(x = 1:163, y = 1:163, z = 1:163) %>% 
   add_column(sglt_top_taxa, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
