@@ -547,7 +547,7 @@ glp_alpha_observed <- glp_alpha_data %>%
        y = "Value") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(90, 95, 100), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(150, 160, 170), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.71", "0.39", "0.12"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -568,7 +568,7 @@ glp_alpha_shannon <- glp_alpha_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(3.6, 3.8, 4.0), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(4.0, 4.2, 4.4), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.77", "0.28", "0.66"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -622,7 +622,7 @@ sglt_alpha_observed <- sglt_alpha_data %>%
        y = "Value") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(102, 106, 110), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(170, 180, 190), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.63", "0.05", "0.42"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -642,7 +642,7 @@ sglt_alpha_shannon <- sglt_alpha_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(3.6, 3.7, 3.8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(4.0, 4.2, 4.4), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.55", "0.86", "0.19"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -662,7 +662,7 @@ sglt_alpha_pielou <- sglt_alpha_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(0.82, 0.84, 0.86), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    y_position = c(0.8, 0.82, 0.84), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.46", "0.83", "0.10"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
