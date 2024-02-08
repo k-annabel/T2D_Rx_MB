@@ -45,9 +45,9 @@ tse_taxa <- TreeSummarizedExperiment(assays =  SimpleList(counts = counts),
                                      colData = DataFrame(samples),
                                      rowData = DataFrame(tax))
 
-## Remove features containing human DNA
+## Remove features containing human DNA and unassigned taxa
 tse_prelim <- tse_taxa[!rowData(tse_taxa)$Phylum == "" & 
-                         !rowData(tse_taxa)$Class == "" & 
+                         !rowData(tse_taxa)$Genus == "" &
                          !rowData(tse_taxa)$Kingdom == "Unassigned", ]
 
 ## Exclude samples
@@ -59,17 +59,16 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 
 # ___________________________________________________________________________ #
 
+# Convert counts into relative abundances
+tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
+
+# Convert relative abundances into CLR-transformed values
+mat <- assay(tse, "relabundance")
+tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
+                       pseudocount = min(mat[mat>0]))
 
 # Collapse into Genus level
 tse_genus <- agglomerateByRank(tse, rank = "Genus")
-
-# Convert counts into relative abundances
-tse_genus <- transformAssay(tse_genus, assay.type = "counts", method = "relabundance")
-
-# Convert relative abundances into CLR-transformed values
-mat <- assay(tse_genus, "relabundance")
-tse_genus <- transformAssay(tse_genus, assay.type = "relabundance", method = "clr", 
-                       pseudocount = min(mat[mat>0]))
 
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
@@ -91,18 +90,8 @@ tse_glp <- estimateRichness(tse_glp, assay.type = "relabundance", index = "obser
 
 ## Prepare data
 
-### Extract CLR-transformed abundance values
-tse_glp_clr <- as.data.frame(assay(tse_glp, "clr"))
-
 ### Extract metadata with alpha diversity indices
-tse_glp_samples <- as.data.frame(colData(tse_glp))
-
-### Perform PCA 
-pca_glp <- prcomp(t(tse_glp_clr))
-
-### Combine PCs with metadata and alpha diversity
-glp_alpha_beta_raw <- data.frame(pca_glp$x[ , 1:5],
-                                 tse_glp_samples)
+tse_glp_metadata <- as.data.frame(colData(tse_glp))
 
 ## Prepare a for-loop for repeated measures ANOVA
 
@@ -123,10 +112,10 @@ glp_alpha_anova_pvalues <- tibble(x = 1:3) %>%
 
 for (j in 1:length(alpha_div)){
   
-  glp_temp_alpha <- glp_alpha_beta_raw %>% 
+  glp_temp_alpha <- tse_glp_metadata %>% 
     rownames_to_column(var = "SampleID") %>% 
-    select(c(7:8, 72:74)) %>% 
-    pivot_longer(cols = 3:5, names_to = "alpha", values_to = "value") %>% 
+    select(c(2:4, 67:69)) %>% 
+    pivot_longer(cols = 4:6, names_to = "alpha", values_to = "value") %>% 
     filter(alpha == alpha_div[j])
   
   glp_alpha_test <- glp_temp_alpha %>% 
@@ -178,10 +167,10 @@ glp_alpha_ttest_pvalues <- tibble(x = 1:3, y = 1:3, z = 1:3) %>%
 ### Execute the for-loop
 for (j in 1:length(alpha_div)){
   
-  temp_alpha_glp <- glp_alpha_beta_raw %>% 
+  temp_alpha_glp <- tse_glp_metadata %>% 
     rownames_to_column(var = "SampleID") %>% 
-    select(c(7:8, 72:74)) %>% 
-    pivot_longer(cols = 3:5, names_to = "alpha_div", values_to = "value") %>% 
+    select(c(2:4, 67:69)) %>% 
+    pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
     filter(alpha_div == alpha_div[j])
   
   for (i in 1:length(timepoints)){
@@ -229,18 +218,8 @@ tse_sglt <- estimateRichness(tse_sglt, assay.type = "relabundance", index = "obs
 
 ## Prepare data
 
-### Extract CLR-transformed abundance values
-tse_sglt_clr <- as.data.frame(assay(tse_sglt, "clr"))
-
 ### Extract metadata with alpha diversity indices
-tse_sglt_samples <- as.data.frame(colData(tse_sglt))
-
-### Perform PCA 
-pca_sglt <- prcomp(t(tse_sglt_clr))
-
-### Combine PCs with metadata and alpha diversity
-sglt_alpha_beta_raw <- data.frame(pca_sglt$x[ , 1:5],
-                                  tse_sglt_samples)
+tse_sglt_metadata <- as.data.frame(colData(tse_sglt))
 
 ## Prepare a for-loop for repeated measures ANOVA
 
@@ -264,10 +243,10 @@ sglt_alpha_anova_pvalues <- tibble(x = 1:3) %>%
 
 for (j in 1:length(alpha_div)){
   
-  sglt_temp_alpha <- sglt_alpha_beta_raw %>% 
+  sglt_temp_alpha <- tse_sglt_metadata %>% 
     rownames_to_column(var = "SampleID") %>% 
-    select(c(7:8, 72:74)) %>% 
-    pivot_longer(cols = 3:5, names_to = "alpha", values_to = "value") %>% 
+    select(c(2:4, 67:69)) %>% 
+    pivot_longer(cols = 4:6, names_to = "alpha", values_to = "value") %>% 
     filter(alpha == alpha_div[j])
   
   sglt_alpha_test <- sglt_temp_alpha %>% 
@@ -318,10 +297,10 @@ sglt_alpha_ttest_pvalues <- tibble(x = 1:3, y = 1:3, z = 1:3) %>%
 ### Execute the for-loop
 for (j in 1:length(alpha_div)){
   
-  temp_alpha_sglt <- sglt_alpha_beta_raw %>% 
+  temp_alpha_sglt <- tse_sglt_metadata %>% 
     rownames_to_column(var = "SampleID") %>% 
-    select(c(7:8, 72:74)) %>% 
-    pivot_longer(cols = 3:5, names_to = "alpha_div", values_to = "value") %>% 
+    select(c(2:4, 67:69)) %>% 
+    pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
     filter(alpha_div == alpha_div[j])
   
   for (i in 1:length(timepoints)){
@@ -377,9 +356,9 @@ t_test_alpha_results <- cbind(glp_alpha_ttest_BH, sglt_alpha_ttest_BH)
 
 ## GLP-1-RA
 
-glp_alpha_plot_data <- glp_alpha_beta_raw %>% 
+glp_alpha_plot_data <- tse_glp_metadata %>% 
   rownames_to_column(var = "SampleID") %>% 
-  select(c(7:9, 72:74)) %>% 
+  select(c(2:4, 67:69))%>% 
   pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
   pivot_wider(names_from = Timepoint, values_from = value) %>% 
   mutate(I_II = I - II, 
@@ -409,40 +388,6 @@ glp_alpha_shannon <- glp_alpha_plot_data %>%
   annotate(geom = "text", label = "ns", x = 1, y = 0.75) +
   annotate(geom = "text", label = "ns", x = 2, y = 0.75) +
   annotate(geom = "text", label = "ns", x = 3, y = 0.75)
-  
-glp_alpha_pielou <- glp_alpha_plot_data %>% 
-  filter(alpha_div == "Pielou") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(.~alpha_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = NULL)  +
-  annotate(geom = "text", label = "ns", x = 1, y = 0.1) +
-  annotate(geom = "text", label = "ns", x = 2, y = 0.1) +
-  annotate(geom = "text", label = "ns", x = 3, y = 0.1)
-
-glp_alpha_observed <- glp_alpha_plot_data %>% 
-  filter(alpha_div == "Observed") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(.~alpha_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = NULL) +
-  annotate(geom = "text", label = "ns", x = 1, y = 30) +
-  annotate(geom = "text", label = "ns", x = 2, y = 30) +
-  annotate(geom = "text", label = "ns", x = 3, y = 30)
 
 ## SGLT-2
 
@@ -479,44 +424,6 @@ sglt_alpha_shannon <- sglt_alpha_plot_data %>%
   annotate(geom = "text", label = "ns", x = 2, y = 0.6) +
   annotate(geom = "text", label = "ns", x = 3, y = 0.6)
 
-sglt_alpha_pielou <- sglt_alpha_plot_data %>% 
-  filter(alpha_div == "Pielou") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(.~alpha_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  xlab("Change in timepoint compared to BL") +
-  theme(axis.title.x = element_text(vjust = -1, size = 11), axis.title.y = element_blank()) +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  annotate(geom = "text", label = "ns", x = 1, y = 0.15) +
-  annotate(geom = "text", label = "ns", x = 2, y = 0.15) +
-  annotate(geom = "text", label = "ns", x = 3, y = 0.15)
-
-sglt_alpha_observed <- sglt_alpha_plot_data %>% 
-  filter(alpha_div == "Observed") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(.~alpha_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = NULL) +
-  annotate(geom = "text", label = "ns", x = 1, y = 10) +
-  annotate(geom = "text", label = "ns", x = 2, y = 10) +
-  annotate(geom = "text", label = "ns", x = 3, y = 10)
-
-common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha_observed, 
-                                  sglt_alpha_shannon, sglt_alpha_pielou, sglt_alpha_observed, 
-                                  ncol = 3, nrow = 2)
-
 # New version
 
 ## GLP-1-RA
@@ -525,9 +432,9 @@ common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha
 
   #440154FF #414487FF #2A788EFF #22A884FF #7AD151FF #FDE725FF
 
-glp_alpha_data <- glp_alpha_beta_raw %>% 
+glp_alpha_data <- tse_glp_metadata %>% 
   rownames_to_column(var = "SampleID") %>% 
-  select(c(7:9, 72:74)) %>% 
+  select(c(2:4, 67:69)) %>% 
   pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
   mutate(alpha_div = recode(alpha_div, 
                             "shannon" = "Shannon",
@@ -548,7 +455,7 @@ glp_alpha_observed <- glp_alpha_data %>%
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(150, 160, 170), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.71", "0.39", "0.12"), tip_length = 0.02) +
+    annotation = c("0.62", "0.36", "0.09"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -569,7 +476,7 @@ glp_alpha_shannon <- glp_alpha_data %>%
        y = "") +
   ggsignif::geom_signif(
     y_position = c(4.0, 4.2, 4.4), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.77", "0.28", "0.66"), tip_length = 0.02) +
+    annotation = c("0.79", "0.29", "0.7"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -589,7 +496,7 @@ glp_alpha_pielou <- glp_alpha_data %>%
        y = "") +
   ggsignif::geom_signif(
     y_position = c(0.85, 0.9, 0.95), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.87", "0.26", "0.98"), tip_length = 0.02) +
+    annotation = c("0.93", "0.28", "0.9"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -600,9 +507,9 @@ glp_alpha_comb <- ggpubr::ggarrange(glp_alpha_observed, glp_alpha_shannon, glp_a
 
 ## SGLT-2
 
-sglt_alpha_data <- sglt_alpha_beta_raw %>% 
+sglt_alpha_data <- tse_sglt_metadata %>% 
   rownames_to_column(var = "SampleID") %>% 
-  select(c(7:9, 72:74)) %>% 
+  select(c(2:4, 67:69)) %>% 
   pivot_longer(cols = 4:6, names_to = "alpha_div", values_to = "value") %>% 
   mutate(alpha_div = recode(alpha_div, 
                             "shannon" = "Shannon",
@@ -616,14 +523,14 @@ sglt_alpha_observed <- sglt_alpha_data %>%
   facet_grid(Medication~alpha_div, switch = "y", scales = "free") +
   geom_boxplot() +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_point(position = position_jitter(width = 0.02)) +
+  geom_point(position = position_jitter(width = 0.05)) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "Timepoint",
        y = "Value") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(170, 180, 190), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.63", "0.05", "0.42"), tip_length = 0.02) +
+    y_position = c(150, 160, 170), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.35", "0.05", "0.3"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -643,7 +550,7 @@ sglt_alpha_shannon <- sglt_alpha_data %>%
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(4.0, 4.2, 4.4), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.55", "0.86", "0.19"), tip_length = 0.02) +
+    annotation = c("0.61", "0.8", "0.21"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -662,8 +569,8 @@ sglt_alpha_pielou <- sglt_alpha_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(0.8, 0.82, 0.84), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.46", "0.83", "0.10"), tip_length = 0.02) +
+    y_position = c(0.8, 0.84, 0.88), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.47", "0.91", "0.12"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 

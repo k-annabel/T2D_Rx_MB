@@ -44,9 +44,9 @@ tse_taxa <- TreeSummarizedExperiment(assays =  SimpleList(counts = counts),
                                      colData = DataFrame(samples),
                                      rowData = DataFrame(tax))
 
-## Remove features containing human DNA
+## Remove features containing human DNA and unassigned taxa
 tse_prelim <- tse_taxa[!rowData(tse_taxa)$Phylum == "" & 
-                         !rowData(tse_taxa)$Class == "" & 
+                         !rowData(tse_taxa)$Genus == "" &
                          !rowData(tse_taxa)$Kingdom == "Unassigned", ]
 
 ## Exclude samples
@@ -58,17 +58,16 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 
 # ___________________________________________________________________________ #
 
+# Convert counts into relative abundances
+tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
+
+# Convert relative abundances into CLR-transformed values
+mat <- assay(tse, "relabundance")
+tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
+                            pseudocount = min(mat[mat>0]))
 
 # Collapse into Genus level
 tse_genus <- agglomerateByRank(tse, rank = "Genus")
-
-# Convert counts into relative abundances
-tse_genus <- transformAssay(tse_genus, assay.type = "counts", method = "relabundance")
-
-# Convert relative abundances into CLR-transformed values
-mat <- assay(tse_genus, "relabundance")
-tse_genus <- transformAssay(tse_genus, assay.type = "relabundance", method = "clr", 
-                            pseudocount = min(mat[mat>0]))
 
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
@@ -387,71 +386,9 @@ glp_PC1 <- glp_beta_plot_data %>%
   annotate(geom = "text", label = "ns", x = 2, y = 0.75) +
   annotate(geom = "text", label = "ns", x = 3, y = 0.75)
 
-glp_PC2 <- glp_beta_plot_data %>% 
-  filter(beta_div == "PC2") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value") +
-  annotate(geom = "text", label = "ns", x = 1, y = 0.1) +
-  annotate(geom = "text", label = "ns", x = 2, y = 0.1) +
-  annotate(geom = "text", label = "ns", x = 3, y = 0.1)
-
-glp_PC3 <- glp_beta_plot_data %>% 
-  filter(beta_div == "PC3") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value") +
-  annotate(geom = "text", label = "ns", x = 1, y = 30) +
-  annotate(geom = "text", label = "ns", x = 2, y = 30) +
-  annotate(geom = "text", label = "ns", x = 3, y = 30)
-
-glp_PC4 <- glp_beta_plot_data %>% 
-  filter(beta_div == "PC4") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value") 
-
-glp_PC5 <- glp_beta_plot_data %>% 
-  filter(beta_div == "PC5") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value")
-
 ## SGLT-2
 
-sglt_beta_plot_data <- sglt_alpha_beta_raw %>% 
+sglt_beta_plot_data <- sglt_beta_raw %>% 
   rownames_to_column(var = "SampleID") %>% 
   select(c(2:9)) %>% 
   pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value") %>% 
@@ -480,72 +417,6 @@ sglt_PC1 <- sglt_beta_plot_data %>%
   annotate(geom = "text", label = "ns", x = 2, y = 0.6) +
   annotate(geom = "text", label = "ns", x = 3, y = 0.6)
 
-sglt_PC2 <- sglt_beta_plot_data %>% 
-  filter(beta_div == "PC2") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value") +
-  annotate(geom = "text", label = "ns", x = 1, y = 0.15) +
-  annotate(geom = "text", label = "ns", x = 2, y = 0.15) +
-  annotate(geom = "text", label = "ns", x = 3, y = 0.15)
-
-sglt_PC3 <- sglt_beta_plot_data %>% 
-  filter(beta_div == "PC3") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value") + 
-  annotate(geom = "text", label = "ns", x = 1, y = 10) +
-  annotate(geom = "text", label = "ns", x = 2, y = 10) +
-  annotate(geom = "text", label = "ns", x = 3, y = 10) 
-
-sglt_PC4 <- sglt_beta_plot_data %>% 
-  filter(beta_div == "PC4") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value")
-
-sglt_PC5 <- sglt_beta_plot_data %>% 
-  filter(beta_div == "PC5") %>% 
-  na.omit() %>% 
-  group_by(chg) %>% 
-  ggplot(aes(x = chg, y = chg_value)) +
-  facet_grid(Medication~beta_div, switch = "y") +
-  geom_boxplot() +
-  geom_point() +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
-  geom_hline(aes(yintercept = 0, colour = "red"), show.legend = F, linetype = "dashed") +
-  scale_x_discrete(labels = c("BL vs M1", "BL vs M3", "BL vs M12")) +
-  labs(x = NULL,
-       y = "Change in value")
-
-common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha_observed, 
-                                  sglt_alpha_shannon, sglt_alpha_pielou, sglt_alpha_observed, 
-                                  ncol = 3, nrow = 2)
-
 # New version
 
 ## GLP-1-RA
@@ -554,7 +425,7 @@ common_alpha <- ggpubr::ggarrange(glp_alpha_shannon, glp_alpha_pielou, glp_alpha
 
 #  #669ABFFF #D4D05BFF #FDF6E2FF #747798FF #534D56FF 
 
-glp_beta_data <- glp_alpha_beta_raw %>% 
+glp_beta_data <- glp_beta_raw %>% 
   rownames_to_column(var = "SampleID") %>% 
   select(c(2:9)) %>%
   pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value")
@@ -571,8 +442,8 @@ glp_PC1_plot <- glp_beta_data %>%
   labs(x = "",
        y = "Value") +
   ggsignif::geom_signif(
-    y_position = c(25, 30, 35), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.74", "0.40", "0.37"), tip_length = 0.02) +
+    y_position = c(150, 180, 210), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.14", "0.04", "0.16"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12),
         strip.text.y = element_text(size = 12),
@@ -592,8 +463,8 @@ glp_PC2_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(25, 30, 35), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.86", "0.68", "0.86"), tip_length = 0.02) +
+    y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.62", "0.29", "0.38"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -612,8 +483,8 @@ glp_PC3_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.68", "0.18", "0.51"), tip_length = 0.02) +
+    y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.84", "0.87", "0.75"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -632,8 +503,8 @@ glp_PC4_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(15, 20, 25), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.68", "0.61", "0.94"), tip_length = 0.02) +
+    y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.56", "0.7", "0.18"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -652,8 +523,8 @@ glp_PC5_plot <- glp_beta_data %>%
   labs(x = "",
        y = "") +
   ggsignif::geom_signif(
-    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.90", "0.61", "0.71"), tip_length = 0.02) +
+    y_position = c(50, 60, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.6", "0.64", "0.59"), tip_length = 0.02) +
   guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
@@ -669,7 +540,7 @@ glp_beta_comb <- ggpubr::ggarrange(glp_PC1_plot, glp_PC2_plot, glp_PC3_plot,
 
 #  #669ABFFF #D4D05BFF #FDF6E2FF #747798FF #534D56FF 
 
-sglt_beta_data <- sglt_alpha_beta_raw %>% 
+sglt_beta_data <- sglt_beta_raw %>% 
   rownames_to_column(var = "SampleID") %>% 
   select(c(2:9)) %>%
   pivot_longer(cols = 1:5, names_to = "beta_div", values_to = "value")
@@ -687,8 +558,8 @@ sglt_PC1_plot <- sglt_beta_data %>%
        y = "Value") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(40, 50, 60), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.45", "0.23", "0.08"), tip_length = 0.02) +
+    y_position = c(130, 160, 190), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.66", "0.12", "0.46"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12),
         strip.text.y = element_text(size = 12),
         axis.text.x = element_text(size = 12),
@@ -708,8 +579,8 @@ sglt_PC2_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.14", "0.005", "0.09"), tip_length = 0.02) +
+    y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.51", "0.47", "0.34"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -728,8 +599,8 @@ sglt_PC3_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.50", "0.20", "0.34"), tip_length = 0.02) +
+    y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.32", "0.44", "0.15"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -748,8 +619,8 @@ sglt_PC4_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.16", "0.70", "0.61"), tip_length = 0.02) +
+    y_position = c(50, 70, 90), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.72", "0.87", "0.56"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
@@ -768,8 +639,8 @@ sglt_PC5_plot <- sglt_beta_data %>%
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
-    y_position = c(20, 25, 30), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.04", "0.62", "0.15"), tip_length = 0.02) +
+    y_position = c(80, 100, 120), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.57", "0.009", "0.10"), tip_length = 0.02) +
   theme(strip.text.x = element_text(size = 12), 
         strip.text.y = element_text(size = 12), 
         axis.text.x = element_text(size = 12), 
