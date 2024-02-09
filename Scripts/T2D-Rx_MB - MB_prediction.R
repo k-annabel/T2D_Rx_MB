@@ -46,7 +46,7 @@ tse_taxa <- TreeSummarizedExperiment(assays =  SimpleList(counts = counts),
 
 ## Remove features containing human DNA
 tse_prelim <- tse_taxa[!rowData(tse_taxa)$Phylum == "" & 
-                         !rowData(tse_taxa)$Class == "" & 
+                         !rowData(tse_taxa)$Genus == "" &
                          !rowData(tse_taxa)$Kingdom == "Unassigned", ]
 
 ## Exclude samples
@@ -58,13 +58,12 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 
 # ___________________________________________________________________________ #
 
-
 # Convert counts into relative abundances
-tse <- transformCounts(tse, assay.type = "counts", method = "relabundance")
+tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
 
 # Convert relative abundances into CLR-transformed values
 mat <- assay(tse, "relabundance")
-tse <- transformCounts(tse, assay.type = "relabundance", method = "clr", 
+tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
                        pseudocount = min(mat[mat>0]))
 
 # Collapse into Genus level
@@ -72,9 +71,6 @@ tse_genus <- agglomerateByRank(tse, rank = "Genus")
 
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
-
-# Remove taxa with Genus observation empty
-tse_genus <- tse_genus[rowData(tse_genus)$Genus != "", ]
 
 # Separate by medication
 tse_glp <- tse_genus[ , colData(tse_genus)$Medication == "GLP-1-RA"]
@@ -123,8 +119,8 @@ heatmap_glp_raw <- merge(heatmap_glp_clr, heatmap_metadata_glp)
 # Subset the data frame
 glp_corr_data <- heatmap_glp_raw %>% 
   select(c(1:12, 13, 21, 25, 63:66, 77:79)) %>% 
-  relocate(PatientID, .before = Bacteroides) %>% 
-  relocate(Timepoint, .before = Bacteroides) %>% 
+  relocate(PatientID, .before = Blautia) %>% 
+  relocate(Timepoint, .before = Blautia) %>% 
   relocate(c("shannon", "pielou", "observed"), .before = PC1) %>% 
   mutate(across(.cols = 4:22, .fns=as.numeric)) %>% 
   pivot_longer(cols = 4:22, names_to = "Parameter", values_to = "Value")
@@ -187,16 +183,16 @@ corrplot::corrplot(glp_corr_alam,
 # Select correct columns and rows
 glp_corr_plot <- glp_corr %>% 
   as.data.frame() %>% 
-  select(c(21, 25:28, 35)) %>% 
-  slice(c(1, 3:5, 10:15)) %>% 
+  select(c(21, 24, 26:28, 35)) %>% 
+  slice(c(1, 3:4, 6, 10:15, 17:19)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "Value")
 
 glp_corr_plot_p <- p.mat_glp %>% 
   as.data.frame() %>% 
   column_to_rownames(var = "rowname") %>% 
-  select(c(21, 25:28, 35)) %>% 
-  slice(c(1, 3:5, 10:15)) %>% 
+  select(c(21, 24, 26:28, 35)) %>% 
+  slice(c(1, 3:4, 6, 10:15, 17:19)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "p_value")
 
@@ -216,8 +212,8 @@ ggplot(glp_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
   annotate("point", x = 1.2, y = 4, shape = "*", size = 7, colour = "black") +
   annotate("point", x = 1, y = 5, shape = "*", size = 7, colour = "black") +
   annotate("point", x = 1, y = 6, shape = "*", size = 7, colour = "black") +
-  scale_x_discrete(labels = c("Alistipes", "Bacteroides", "Blautia", "Dorea",
-                   "PC1", "PC2", "PC3", "PC4", "PC5", "Roseburia")) +
+  scale_x_discrete(labels = c("Alistipes", "Blautia", "Dorea", "Lachnoclostridium",
+                   "Observed", "PC1", "PC2", "PC3", "PC4", "PC5", "Pielou", "Roseburia", "Shannon")) +
   scale_y_discrete(labels = c("BMI", "HbA1c", "Lymphocytes", "Neutrophils", "NLR", "White blood cells")) +
   labs(x = "Baseline MB parameter", 
        y = NULL, 
@@ -264,11 +260,6 @@ heatmap_metadata_sglt <- data.frame(pca_sglt$x[ , 1:5], heatmap_metadata_sglt_ra
 
 # Merge two data frames
 heatmap_sglt_raw <- merge(heatmap_sglt_clr, heatmap_metadata_sglt)
-
-#### Subset the data frame
-sglt_corr_data <- sglt_coldata_df %>% 
-  rownames_to_column(var = "SampleID") %>% 
-  select(!c(4:8, 56:66))
 
 # Subset the data frame
 sglt_corr_data <- heatmap_sglt_raw %>% 
@@ -319,16 +310,16 @@ pheatmap(sglt_corr)
 # Select correct columns and rows
 sglt_corr_plot <- sglt_corr %>% 
   as.data.frame() %>% 
-  select(c(18, 22:23)) %>% 
-  slice(c(1, 3:5, 8:16)) %>% 
+  select(c(17, 20:21)) %>% 
+  slice(c(2:3, 6:16)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:4, names_to = "chg_Parameter", values_to = "Value")
 
 sglt_corr_plot_p <- p.mat_sglt %>% 
   as.data.frame() %>% 
   column_to_rownames(var = "rowname") %>% 
-  select(c(18, 22:23)) %>% 
-  slice(c(1, 3:5, 8:16)) %>% 
+  select(c(17, 20:21)) %>% 
+  slice(c(2:3, 6:16))%>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:4, names_to = "chg_Parameter", values_to = "p_value")
 
@@ -343,4 +334,13 @@ ggplot(sglt_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
   scale_fill_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446", limits=c(-1,1)) +
   coord_fixed() +
   geom_text(aes(label = round(p_if_sig_BH,3)), colour = "white", size = 3) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  scale_x_discrete(labels = c("Blautia", "Christensenellaceae R-7 group", "Observed",
+                              "PC1", "PC2", "PC3", "PC4", "PC5", "Pielou", "Roseburia", 
+                              "Ruminococcaceae UCG-002", "Ruminococcaceae UCG-005", "Shannon")) +
+  scale_y_discrete(labels = c("BMI", "GFR", "HbA1c")) +
+  labs(x = "Baseline MB parameter", 
+       y = NULL, 
+       fill = "Pearson correlation")
+
+ggsave("sglt_heatmap.svg", device = "svg", width = 11, height = 8)
