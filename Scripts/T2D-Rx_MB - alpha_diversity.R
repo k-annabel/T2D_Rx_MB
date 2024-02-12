@@ -59,16 +59,16 @@ tse <- tse_prelim[ , !colnames(tse_prelim) %in% c("GLP1RA-5-2", "GLP1RA-5-3",
 
 # ___________________________________________________________________________ #
 
-# Convert counts into relative abundances
-tse <- transformAssay(tse, assay.type = "counts", method = "relabundance")
-
-# Convert relative abundances into CLR-transformed values
-mat <- assay(tse, "relabundance")
-tse <- transformAssay(tse, assay.type = "relabundance", method = "clr", 
-                       pseudocount = min(mat[mat>0]))
-
 # Collapse into Genus level
 tse_genus <- agglomerateByRank(tse, rank = "Genus")
+
+# Convert counts into relative abundances
+tse_genus <- transformAssay(tse_genus, assay.type = "counts", method = "relabundance")
+
+# Convert relative abundances into CLR-transformed values
+mat <- assay(tse_genus, "relabundance")
+tse_genus <- transformAssay(tse_genus, assay.type = "relabundance", method = "clr", 
+                       pseudocount = min(mat[mat>0]))
 
 # Remove "Genus:" label
 rownames(tse_genus) <- sub("Genus:", "", rownames(tse_genus))
