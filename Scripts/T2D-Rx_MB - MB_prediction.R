@@ -202,7 +202,7 @@ glp_corr_plot <- glp_corr_plot %>%
   mutate(sig_p = ifelse(p_value_BH < 0.05, T, F)) %>% 
   mutate(p_if_sig_BH = ifelse(sig_p, p_value_BH, NA))
 
-ggplot(glp_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
+glp_heatmap <- ggplot(glp_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
   geom_tile(colour = "black") +
   scale_fill_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446", limits=c(-1,1)) +
   coord_fixed() +
@@ -216,7 +216,7 @@ ggplot(glp_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
                    "Observed", "PC1", "PC2", "PC3", "PC4", "PC5", "Pielou", "Shannon")) +
   scale_y_discrete(labels = c("BMI", "HbA1c", "Lymphocytes", "Neutrophils", "NLR", "White blood cells")) +
   labs(x = "Baseline MB parameter", 
-       y = NULL, 
+       y = "Change in the parameter value", 
        fill = "Pearson correlation")
 
 ggsave("glp_heatmap.svg", device = "svg", width = 8, height = 10)
@@ -329,7 +329,7 @@ sglt_corr_plot <- sglt_corr_plot %>%
   mutate(sig_p = ifelse(p_value_BH < 0.05, T, F)) %>% 
   mutate(p_if_sig_BH = ifelse(sig_p, p_value_BH, NA))
 
-ggplot(sglt_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
+sglt_heatmap <- ggplot(sglt_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
   geom_tile(colour = "black") +
   scale_fill_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446", limits=c(-1,1)) +
   coord_fixed() +
@@ -340,7 +340,196 @@ ggplot(sglt_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
                               "PC4", "PC5", "Pielou", "Shannon")) +
   scale_y_discrete(labels = c("BMI", "GFR", "HbA1c")) +
   labs(x = "Baseline MB parameter", 
-       y = NULL, 
+       y = "Change in the parameter value", 
        fill = "Pearson correlation")
 
 ggsave("sglt_heatmap.svg", device = "svg", width = 11, height = 8)
+
+comb_prediction <- ggarrange(glp_heatmap, sglt_heatmap, ncol = 1, nrow = 2, common.legend = TRUE)
+
+# ___________________________________________________________________________ #
+
+# New analyses for differentially abundant genera according to ANOVA
+
+# GLP-1-RA
+
+# Leave in genera found differentially abundant by ANOVA
+heatmap_glp_clr_anova <- heatmap_glp_clr_raw %>% 
+  select(all_of(glp_anova_genera)) %>% 
+  rownames_to_column(var = "SampleID")
+
+# Extract metadata 
+heatmap_metadata_glp_raw <- as.data.frame(colData(tse_glp)) %>% 
+  rownames_to_column(var = "SampleID")
+
+# Add PCA data
+heatmap_metadata_glp <- data.frame(pca_glp$x[ , 1:5], heatmap_metadata_glp_raw)
+
+# Merge two data frames
+heatmap_glp_raw_v2 <- merge(heatmap_glp_clr_anova, heatmap_metadata_glp)
+
+# Subset the data frame
+glp_corr_data <- heatmap_glp_raw_v2 %>% 
+  select(c(1:15, 23, 27, 65:68, 79:81)) %>% 
+  relocate(PatientID, .before = Romboutsia) %>% 
+  relocate(Timepoint, .before = Romboutsia) %>% 
+  relocate(c("shannon", "pielou", "observed"), .before = PC1) %>% 
+  mutate(across(.cols = 4:24, .fns=as.numeric)) %>% 
+  pivot_longer(cols = 4:24, names_to = "Parameter", values_to = "Value")
+
+# Pull out BL-data
+glp_corr_BL <- glp_corr_data %>% 
+  filter(Timepoint == "I") %>% 
+  select(-Timepoint) %>% 
+  dplyr::rename(Value_BL = Value)
+
+# Pull out other timepoints' data
+glp_corr_TP <- glp_corr_data %>% 
+  filter(!Timepoint %in% c("I"))
+
+# Merge two data frames together
+glp_heatmap_comb <- merge(glp_corr_BL, glp_corr_TP, 
+                          by = c("PatientID", "Parameter"),
+                          all = TRUE)
+
+# Tidy the merged data frame
+glp_heatmap <- glp_heatmap_comb %>% 
+  arrange(PatientID, Parameter, SampleID.y) %>% 
+  mutate(chg = Value - Value_BL) %>% 
+  select(-Value) %>% 
+  pivot_wider(names_from = Parameter, values_from = c(Value_BL, chg)) %>% 
+  filter(!Timepoint %in% c("II", "IV")) %>% 
+  select(-c(PatientID, SampleID.x, SampleID.y, Timepoint))
+
+# Calculate the correlation matrix
+glp_corr <- round(cor(glp_heatmap, use = "complete.obs"), 3)
+#glp_corr <- round(cor(glp_heatmap), 1)
+glp_corr[is.na(glp_corr)] <- 0
+
+# Compute a matrix of correlation p-values
+p.mat_glp <- cor_pmat(glp_heatmap)
+p.mat_glp[is.na(p.mat_glp)] <- 0
+
+# Visualize the inital correlation matrix
+pheatmap(glp_corr)
+
+# Select correct columns and rows
+glp_corr_plot <- glp_corr %>% 
+  as.data.frame() %>% 
+  select(c(23, 27:30, 39)) %>% 
+  slice(c(1, 3:5, 10:17, 19:21)) %>% 
+  rownames_to_column(var = "BL_Parameter") %>% 
+  pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "Value")
+
+glp_corr_plot_p <- p.mat_glp %>% 
+  as.data.frame() %>% 
+  column_to_rownames(var = "rowname") %>% 
+  select(c(23, 27:30, 39)) %>% 
+  slice(c(1, 3:5, 10:17, 19:21)) %>% 
+  rownames_to_column(var = "BL_Parameter") %>% 
+  pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "p_value")
+
+glp_corr_plot <- glp_corr_plot %>% 
+  mutate(p_value = glp_corr_plot_p$p_value) %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
+  mutate(sig_p = ifelse(p_value_BH < 0.05, T, F)) %>% 
+  mutate(p_if_sig_BH = ifelse(sig_p, p_value_BH, NA))
+
+ggplot(glp_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
+  geom_tile(colour = "black") +
+  scale_fill_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446", limits=c(-1,1)) +
+  coord_fixed() +
+  geom_text(aes(label = round(p_value,3)), colour = "black", size = 3) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
+
+# SGLT-2
+
+# Leave in genera found differentially abundant by ANOVA
+heatmap_sglt_clr <- heatmap_sglt_clr_raw %>% 
+  select(all_of(sglt_anova_genera)) %>% 
+  rownames_to_column(var = "SampleID")
+
+# Convert colData into a data frame
+heatmap_metadata_sglt_raw <- as.data.frame(colData(tse_sglt)) %>% 
+  rownames_to_column(var = "SampleID")
+
+# Add PCA data
+heatmap_metadata_sglt <- data.frame(pca_sglt$x[ , 1:5], heatmap_metadata_sglt_raw)
+
+# Merge two data frames
+heatmap_sglt_raw <- merge(heatmap_sglt_clr, heatmap_metadata_sglt)
+
+# Subset the data frame
+sglt_corr_data <- heatmap_sglt_raw %>% 
+  relocate(PatientID, .before = Agathobacter) %>% 
+  relocate(Timepoint, .before = Agathobacter) %>% 
+  select(c(1:18, 26, 30, 44, 82:84)) %>% 
+  relocate(c("shannon", "pielou", "observed"), .before = PC1) %>% 
+  mutate(across(.cols = 4:24, .fns=as.numeric)) %>% 
+  pivot_longer(cols = 4:24, names_to = "Parameter", values_to = "Value")
+
+# Pull out BL-data
+sglt_corr_BL <- sglt_corr_data %>% 
+  filter(Timepoint == "I") %>% 
+  select(-Timepoint) %>% 
+  dplyr::rename(Value_BL = Value)
+
+# Pull out other timepoints' data
+sglt_corr_TP <- sglt_corr_data %>% 
+  filter(!Timepoint %in% c("I"))
+
+# Merge two data frames together
+sglt_heatmap_comb <- merge(sglt_corr_BL, sglt_corr_TP, 
+                           by = c("PatientID", "Parameter"),
+                           all = TRUE)
+
+# Tidy the merged data frame
+sglt_heatmap <- sglt_heatmap_comb %>% 
+  arrange(PatientID, Parameter, SampleID.y) %>% 
+  mutate(chg = Value - Value_BL) %>% 
+  select(-Value) %>% 
+  pivot_wider(names_from = Parameter, values_from = c(Value_BL, chg)) %>% 
+  filter(!Timepoint %in% c("II", "IV")) %>% 
+  select(-c(PatientID, SampleID.x, SampleID.y, Timepoint))
+
+#### Calculate the correlation matrix
+sglt_corr <- round(cor(sglt_heatmap, use = "complete.obs"), 3)
+#glp_corr <- round(cor(glp_heatmap), 1)
+sglt_corr[is.na(sglt_corr)] <- 0
+
+#### Compute a matrix of correlation p-values
+p.mat_sglt <- cor_pmat(sglt_heatmap)
+p.mat_sglt[is.na(p.mat_sglt)] <- 0
+
+#### Visualize the inital correlation matrix
+pheatmap(sglt_corr)
+
+# Select correct columns and rows
+sglt_corr_plot <- sglt_corr %>% 
+  as.data.frame() %>% 
+  select(c(24, 28:29)) %>% 
+  slice(c(1:2, 4:6, 9:21)) %>% 
+  rownames_to_column(var = "BL_Parameter") %>% 
+  pivot_longer(cols = 2:4, names_to = "chg_Parameter", values_to = "Value")
+
+sglt_corr_plot_p <- p.mat_sglt %>% 
+  as.data.frame() %>% 
+  column_to_rownames(var = "rowname") %>% 
+  select(c(24, 28:29)) %>% 
+  slice(c(1, 3:6, 9:21))%>% 
+  rownames_to_column(var = "BL_Parameter") %>% 
+  pivot_longer(cols = 2:4, names_to = "chg_Parameter", values_to = "p_value")
+
+sglt_corr_plot <- sglt_corr_plot %>% 
+  mutate(p_value = sglt_corr_plot_p$p_value) %>% 
+  mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
+  mutate(sig_p = ifelse(p_value_BH < 0.05, T, F)) %>% 
+  mutate(p_if_sig_BH = ifelse(sig_p, p_value_BH, NA))
+
+ggplot(sglt_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
+  geom_tile(colour = "black") +
+  scale_fill_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446", limits=c(-1,1)) +
+  coord_fixed() +
+  geom_text(aes(label = round(p_value,3)), colour = "black", size = 3) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
+

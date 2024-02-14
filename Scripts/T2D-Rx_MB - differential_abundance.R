@@ -285,7 +285,8 @@ for (j in 1:length(sglt_top_taxa)){
 sglt_da_anova_results <- sglt_da_anova_results_raw[-3]
 
 sglt_anova_da_results_BH <- sglt_da_anova_results %>% 
-  mutate(p_value_BH = p.adjust(p_value, method = "BH"))
+  mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
+  filter(p_value <= 0.053)
 
 # Perform t-tests
 
@@ -385,14 +386,15 @@ glp_da_plot_am <- glp_genera_comparisons %>%
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
-  facet_wrap(~Genus, scales = "free") +
+  facet_grid(Medication~Genus, scales = "free", switch = "y") +
   ggsignif::geom_signif(
     y_position = c(7, 9, 11), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.71", "0.41", "0.38"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "CLR") +
-  theme(strip.text = element_text(size = 12, face = "italic"),
+  theme(strip.text.x = element_text(size = 12, face = "italic"),
+        strip.text.y = element_text(size = 12),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -566,7 +568,6 @@ sglt_da_plot_ab <- sglt_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "CLR") +
-  guides(fill = "none") +
   theme(strip.text.x = element_text(size = 12, face = "italic"),
         strip.text.y = element_text(size = 12),
         axis.text.x = element_text(size = 12), 
