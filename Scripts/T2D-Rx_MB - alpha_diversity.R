@@ -451,13 +451,14 @@ glp_alpha_observed <- glp_alpha_data %>%
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "Value") +
+       y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(150, 160, 170), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.62", "0.36", "0.09"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -477,8 +478,9 @@ glp_alpha_shannon <- glp_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(4.0, 4.2, 4.4), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.79", "0.29", "0.7"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -497,8 +499,9 @@ glp_alpha_pielou <- glp_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(0.85, 0.9, 0.95), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.93", "0.28", "0.9"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -525,14 +528,15 @@ sglt_alpha_observed <- sglt_alpha_data %>%
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   geom_point(position = position_jitter(width = 0.05)) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(x = "Timepoint",
-       y = "Value") +
+  labs(x = "",
+       y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(150, 160, 170), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.35", "0.05", "0.3"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -551,8 +555,9 @@ sglt_alpha_shannon <- sglt_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(4.0, 4.2, 4.4), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.61", "0.8", "0.21"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -571,8 +576,9 @@ sglt_alpha_pielou <- sglt_alpha_data %>%
   ggsignif::geom_signif(
     y_position = c(0.8, 0.84, 0.88), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.47", "0.91", "0.12"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 

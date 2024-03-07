@@ -148,7 +148,7 @@ glp_da_anova_results <- glp_da_anova_results_raw[-3]
 
 glp_anova_da_results_BH <- glp_da_anova_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
-  filter(p_value <= 0.053)
+  filter(p_value <= 0.05)
 
 # ___________________________________________________________________________ #
 
@@ -286,7 +286,7 @@ sglt_da_anova_results <- sglt_da_anova_results_raw[-3]
 
 sglt_anova_da_results_BH <- sglt_da_anova_results %>% 
   mutate(p_value_BH = p.adjust(p_value, method = "BH")) %>% 
-  filter(p_value <= 0.053)
+  filter(p_value <= 0.05)
 
 # Perform t-tests
 

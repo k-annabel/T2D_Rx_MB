@@ -13,8 +13,6 @@ library(miaViz)
 library(purrr)
 library(tidyr)
 library(vegan)
-library(pheatmap)
-library(ggcorrplot)
 library(ggpubr)
 library(paletteer)
 library(ggthemes)
@@ -440,16 +438,16 @@ glp_PC1_plot <- glp_beta_data %>%
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.3) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "Value") +
+       y = "") +
   ggsignif::geom_signif(
     y_position = c(150, 180, 210), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.14", "0.04", "0.16"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text.x = element_text(size = 12),
-        strip.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.y = element_text(size = 12))
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 glp_PC2_plot <- glp_beta_data %>% 
   filter(beta_div == "PC2") %>% 
@@ -466,8 +464,9 @@ glp_PC2_plot <- glp_beta_data %>%
     y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.62", "0.29", "0.38"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -486,8 +485,9 @@ glp_PC3_plot <- glp_beta_data %>%
     y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.84", "0.87", "0.75"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -506,8 +506,9 @@ glp_PC4_plot <- glp_beta_data %>%
     y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.56", "0.7", "0.18"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -526,13 +527,14 @@ glp_PC5_plot <- glp_beta_data %>%
     y_position = c(50, 60, 70), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.6", "0.64", "0.59"), tip_length = 0.02) +
   guides(fill = "none") +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
-glp_beta_comb <- ggpubr::ggarrange(glp_PC1_plot, glp_PC2_plot, glp_PC3_plot, 
-                                   glp_PC4_plot, glp_PC5_plot, nrow = 1, ncol = 5)
+glp_beta_comb <- ggpubr::ggarrange(glp_PC1_plot, glp_PC2_plot, glp_PC3_plot,
+                                   nrow = 1, ncol = 3)
 
 ## SGLT-2
 
@@ -555,16 +557,16 @@ sglt_PC1_plot <- sglt_beta_data %>%
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "Value") +
+       y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(130, 160, 190), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.66", "0.12", "0.46"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12),
-        strip.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.y = element_text(size = 12))
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
 
 sglt_PC2_plot <- sglt_beta_data %>% 
   filter(beta_div == "PC2") %>% 
@@ -575,14 +577,15 @@ sglt_PC2_plot <- sglt_beta_data %>%
   geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(x = "Timepoint",
+  labs(x = "",
        y = "") +
   guides(fill = "none") +
   ggsignif::geom_signif(
     y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.51", "0.47", "0.34"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -601,8 +604,9 @@ sglt_PC3_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(100, 120, 140), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.32", "0.44", "0.15"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -621,8 +625,9 @@ sglt_PC4_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(50, 70, 90), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.72", "0.87", "0.56"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
@@ -641,15 +646,16 @@ sglt_PC5_plot <- sglt_beta_data %>%
   ggsignif::geom_signif(
     y_position = c(80, 100, 120), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.57", "0.009", "0.10"), tip_length = 0.02) +
-  theme(strip.text.x = element_text(size = 12), 
-        strip.text.y = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text.x = element_text(size = 16), 
+        strip.text.y = element_text(size = 16), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
-sglt_beta_comb <- ggpubr::ggarrange(sglt_PC1_plot, sglt_PC2_plot, sglt_PC3_plot,
-                                    sglt_PC4_plot, sglt_PC5_plot, nrow = 1, ncol = 5)
+sglt_beta_comb <- ggpubr::ggarrange(sglt_PC1_plot, sglt_PC2_plot, sglt_PC3_plot, 
+                                    nrow = 1, ncol = 3)
 
 beta_comb <- ggpubr::ggarrange(glp_beta_comb, sglt_beta_comb, 
                                 nrow = 2, ncol = 1)
 
-ggsave("combined_beta_plot.svg", device = "svg", dpi = 300, width = 15, height = 11)
+ggsave("combined_beta_plot.svg", device = "svg", dpi = 300, width = 11, height = 11)

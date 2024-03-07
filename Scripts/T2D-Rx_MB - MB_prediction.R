@@ -183,16 +183,16 @@ corrplot::corrplot(glp_corr_alam,
 # Select correct columns and rows
 glp_corr_plot <- glp_corr %>% 
   as.data.frame() %>% 
-  select(c(21, 26:29, 35)) %>% 
-  slice(c(1, 3:6, 11:15, 17:19)) %>% 
+  dplyr::select(c(21, 26:29, 35)) %>% 
+  dplyr::slice(c(1, 3:6, 11:15, 17:19)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "Value")
 
 glp_corr_plot_p <- p.mat_glp %>% 
   as.data.frame() %>% 
   column_to_rownames(var = "rowname") %>% 
-  select(c(21, 26:29, 35)) %>% 
-  slice(c(1, 3:6, 11:15, 17:19)) %>% 
+  dplyr::select(c(21, 26:29, 35)) %>% 
+  dplyr::slice(c(1, 3:6, 11:15, 17:19)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "p_value")
 
