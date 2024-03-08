@@ -163,21 +163,6 @@ p.mat_glp[is.na(p.mat_glp)] <- 0
 # Visualize the inital correlation matrix
 pheatmap(glp_corr)
 
-# Make a submatrix for analysis (all TPs included)
-glp_corr_alam <- glp_corr[c(1, 3:6, 11:15, 17:19), c(21, 26:29, 35)]
-glp_pmat_alam <- p.mat_glp[c(1, 3:6, 11:15, 17:19), c(21, 26:29, 35)]
-glp_labels_row <- c("Alistipes", "Dorea", "Roseburia", "Bacteroides", "Blautia")
-glp_labels_col <- c("Blood glucose", "BMI", "HbA1c (%)")
-glp_alam_hm <- pheatmap(glp_corr_alam, 
-                        #labels_row = glp_labels_row, 
-                        #labels_col = glp_labels_col, 
-                        fontsize = 18, angle_col = 45)
-
-
-corrplot::corrplot(glp_corr_alam,
-                   method = "square")
-
-
 # Option 2 with ggplot2
 
 # Select correct columns and rows
@@ -349,13 +334,13 @@ comb_prediction <- ggarrange(glp_heatmap, sglt_heatmap, ncol = 1, nrow = 2, comm
 
 # ___________________________________________________________________________ #
 
-# New analyses for differentially abundant genera according to ANOVA
+# New analyses for all genera
 
 # GLP-1-RA
 
 # Leave in genera found differentially abundant by ANOVA
-heatmap_glp_clr_anova <- heatmap_glp_clr_raw %>% 
-  select(all_of(glp_anova_genera)) %>% 
+heatmap_glp_clr <- heatmap_glp_clr_raw %>% 
+  select(all_of(glp_top_taxa)) %>% 
   rownames_to_column(var = "SampleID")
 
 # Extract metadata 
@@ -366,16 +351,16 @@ heatmap_metadata_glp_raw <- as.data.frame(colData(tse_glp)) %>%
 heatmap_metadata_glp <- data.frame(pca_glp$x[ , 1:5], heatmap_metadata_glp_raw)
 
 # Merge two data frames
-heatmap_glp_raw_v2 <- merge(heatmap_glp_clr_anova, heatmap_metadata_glp)
+heatmap_glp_raw_v2 <- merge(heatmap_glp_clr, heatmap_metadata_glp)
 
 # Subset the data frame
 glp_corr_data <- heatmap_glp_raw_v2 %>% 
-  select(c(1:15, 23, 27, 65:68, 79:81)) %>% 
-  relocate(PatientID, .before = Romboutsia) %>% 
-  relocate(Timepoint, .before = Romboutsia) %>% 
+  select(c(1:136, 144, 148, 186:189, 200:202)) %>% 
+  relocate(PatientID, .before = "Prevotella 9") %>% 
+  relocate(Timepoint, .before = "Prevotella 9") %>% 
   relocate(c("shannon", "pielou", "observed"), .before = PC1) %>% 
-  mutate(across(.cols = 4:24, .fns=as.numeric)) %>% 
-  pivot_longer(cols = 4:24, names_to = "Parameter", values_to = "Value")
+  mutate(across(.cols = 4:145, .fns=as.numeric)) %>% 
+  pivot_longer(cols = 4:145, names_to = "Parameter", values_to = "Value")
 
 # Pull out BL-data
 glp_corr_BL <- glp_corr_data %>% 
@@ -404,11 +389,11 @@ glp_heatmap <- glp_heatmap_comb %>%
 # Calculate the correlation matrix
 glp_corr <- round(cor(glp_heatmap, use = "complete.obs"), 3)
 #glp_corr <- round(cor(glp_heatmap), 1)
-glp_corr[is.na(glp_corr)] <- 0
+#glp_corr[is.na(glp_corr)] <- 0
 
 # Compute a matrix of correlation p-values
 p.mat_glp <- cor_pmat(glp_heatmap)
-p.mat_glp[is.na(p.mat_glp)] <- 0
+#p.mat_glp[is.na(p.mat_glp)] <- 0
 
 # Visualize the inital correlation matrix
 pheatmap(glp_corr)
@@ -416,16 +401,16 @@ pheatmap(glp_corr)
 # Select correct columns and rows
 glp_corr_plot <- glp_corr %>% 
   as.data.frame() %>% 
-  select(c(23, 27:30, 39)) %>% 
-  slice(c(1, 3:5, 10:17, 19:21)) %>% 
+  select(c(153, 193, 210, 214, 216, 261)) %>% 
+  slice(c(1:10, 12:50, 52:67, 69:71, 73, 75:118, 120:142)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "Value")
 
 glp_corr_plot_p <- p.mat_glp %>% 
   as.data.frame() %>% 
   column_to_rownames(var = "rowname") %>% 
-  select(c(23, 27:30, 39)) %>% 
-  slice(c(1, 3:5, 10:17, 19:21)) %>% 
+  select(c(153, 193, 210, 214, 216, 261)) %>% 
+  slice(c(1:10, 12:50, 52:67, 69:71, 73, 75:118, 120:142)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
   pivot_longer(cols = 2:7, names_to = "chg_Parameter", values_to = "p_value")
 
@@ -442,11 +427,13 @@ ggplot(glp_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
   geom_text(aes(label = round(p_value,3)), colour = "black", size = 3) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
 
+# Only stat signf association: BL_Alistipes ~ chg_Neutr
+
 # SGLT-2
 
 # Leave in genera found differentially abundant by ANOVA
 heatmap_sglt_clr <- heatmap_sglt_clr_raw %>% 
-  select(all_of(sglt_anova_genera)) %>% 
+  select(all_of(sglt_top_taxa)) %>% 
   rownames_to_column(var = "SampleID")
 
 # Convert colData into a data frame
@@ -461,12 +448,12 @@ heatmap_sglt_raw <- merge(heatmap_sglt_clr, heatmap_metadata_sglt)
 
 # Subset the data frame
 sglt_corr_data <- heatmap_sglt_raw %>% 
-  relocate(PatientID, .before = Agathobacter) %>% 
-  relocate(Timepoint, .before = Agathobacter) %>% 
-  select(c(1:18, 26, 30, 44, 82:84)) %>% 
+  relocate(PatientID, .before = "Prevotella 9") %>% 
+  relocate(Timepoint, .before = "Prevotella 9") %>% 
+  select(c(1:154, 163, 167, 181, 205:208, 219:221)) %>% 
   relocate(c("shannon", "pielou", "observed"), .before = PC1) %>% 
-  mutate(across(.cols = 4:24, .fns=as.numeric)) %>% 
-  pivot_longer(cols = 4:24, names_to = "Parameter", values_to = "Value")
+  mutate(across(.cols = 4:164, .fns=as.numeric)) %>% 
+  pivot_longer(cols = 4:164, names_to = "Parameter", values_to = "Value")
 
 # Pull out BL-data
 sglt_corr_BL <- sglt_corr_data %>% 
@@ -494,12 +481,12 @@ sglt_heatmap <- sglt_heatmap_comb %>%
 
 #### Calculate the correlation matrix
 sglt_corr <- round(cor(sglt_heatmap, use = "complete.obs"), 3)
-#glp_corr <- round(cor(glp_heatmap), 1)
-sglt_corr[is.na(sglt_corr)] <- 0
+#sglt_corr <- round(cor(sglt_heatmap), 1)
+#sglt_corr[is.na(sglt_corr)] <- 0
 
 #### Compute a matrix of correlation p-values
 p.mat_sglt <- cor_pmat(sglt_heatmap)
-p.mat_sglt[is.na(p.mat_sglt)] <- 0
+#p.mat_sglt[is.na(p.mat_sglt)] <- 0
 
 #### Visualize the inital correlation matrix
 pheatmap(sglt_corr)
@@ -507,18 +494,18 @@ pheatmap(sglt_corr)
 # Select correct columns and rows
 sglt_corr_plot <- sglt_corr %>% 
   as.data.frame() %>% 
-  select(c(24, 28:29)) %>% 
-  slice(c(1:2, 4:6, 9:21)) %>% 
+  select(c(172, 208, 212, 230, 237, 239, 287)) %>% 
+  slice(c(1:10, 12:46, 48:51, 53:68, 70:75, 77, 79:123, 125, 127:161)) %>% 
   rownames_to_column(var = "BL_Parameter") %>% 
-  pivot_longer(cols = 2:4, names_to = "chg_Parameter", values_to = "Value")
+  pivot_longer(cols = 2:8, names_to = "chg_Parameter", values_to = "Value")
 
 sglt_corr_plot_p <- p.mat_sglt %>% 
   as.data.frame() %>% 
   column_to_rownames(var = "rowname") %>% 
-  select(c(24, 28:29)) %>% 
-  slice(c(1, 3:6, 9:21))%>% 
+  select(c(172, 208, 212, 230, 237, 239, 287)) %>% 
+  slice(c(1:10, 12:46, 48:51, 53:68, 70:75, 77, 79:123, 125, 127:161))%>% 
   rownames_to_column(var = "BL_Parameter") %>% 
-  pivot_longer(cols = 2:4, names_to = "chg_Parameter", values_to = "p_value")
+  pivot_longer(cols = 2:8, names_to = "chg_Parameter", values_to = "p_value")
 
 sglt_corr_plot <- sglt_corr_plot %>% 
   mutate(p_value = sglt_corr_plot_p$p_value) %>% 
@@ -530,6 +517,26 @@ ggplot(sglt_corr_plot, aes(x = BL_Parameter, y = chg_Parameter, fill = Value)) +
   geom_tile(colour = "black") +
   scale_fill_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446", limits=c(-1,1)) +
   coord_fixed() +
-  geom_text(aes(label = round(p_value,3)), colour = "black", size = 3) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
+  geom_text(aes(label = round(p_value,3)), colour = "black", size = 1) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
 
+# ___________________________________________________________________________ #
+
+# Correlation plots for selected associations
+
+glp_heatmap %>% 
+  ggplot(aes(x = Value_BL_Alistipes, y = chg_Neutr)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  ggpubr::stat_regline_equation(label.y = 0, aes(label = after_stat(eq.label))) +
+  ggpubr::stat_regline_equation(label.y = -0.5, aes(label = after_stat(rr.label))) +
+  labs(x = "", y = "")
+
+
+sglt_heatmap %>% 
+  ggplot(aes(x = Value_BL_Bilophila, y = chg_GFR)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  ggpubr::stat_regline_equation(label.y = 0, aes(label = after_stat(eq.label))) +
+  ggpubr::stat_regline_equation(label.y = -0.5, aes(label = after_stat(rr.label))) +
+  labs(x = "", y = "")
