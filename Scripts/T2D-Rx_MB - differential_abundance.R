@@ -245,9 +245,6 @@ sglt_genera_comparisons <- assay(tse_sglt, "clr") %>%
 
 # Perform repeated measures ANOVA
 
-# Remove duplicate genera
-# sglt_top_taxa2 <- sglt_top_taxa[!(sglt_top_taxa %in% c("uncultured", "uncultured_1"))]
-
 # Create a tibble for results
 sglt_da_anova_ges <- tibble(x = 1:147) %>% 
   add_column(sglt_top_taxa, .before = "x") %>% 
@@ -295,11 +292,11 @@ timepoints <- c("II", "III", "IV")
 
 # Pull five significant genera (there are more... (N = 10))
 sglt_anova_genera <- sglt_anova_da_results_BH %>% 
-  filter(p_value <= 0.051) %>% 
+  filter(p_value <= 0.05) %>% 
   pull(sglt_top_taxa)
 
 ### Make a tibble for estimates
-sglt_da_ttest_estimates <- tibble(x = 1:10, y = 1:10, z = 1:10) %>% 
+sglt_da_ttest_estimates <- tibble(x = 1:9, y = 1:9, z = 1:9) %>% 
   add_column(sglt_anova_genera, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -307,7 +304,7 @@ sglt_da_ttest_estimates <- tibble(x = 1:10, y = 1:10, z = 1:10) %>%
   column_to_rownames(var = "sglt_anova_genera")
 
 ### Make a tibble for p-values
-sglt_da_ttest_pvalues <- tibble(x = 1:10, y = 1:10, z = 1:10) %>% 
+sglt_da_ttest_pvalues <- tibble(x = 1:9, y = 1:9, z = 1:9) %>% 
   add_column(sglt_anova_genera, .before = "x") %>% 
   dplyr::rename(II = x,
                 III = y,
@@ -348,7 +345,6 @@ sglt_da_pvalues <- sglt_da_ttest_pvalues %>%
   rownames_to_column(var = "Genus") %>% 
   pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value_SGLT") %>% 
   select(-c(Genus, timepoint))
-  #mutate(p_value_BH_SGLT = p.adjust(p_value_SGLT, method = "BH"))
 
 sglt_da_ttest_BH <- bind_cols(sglt_da_estim, sglt_da_pvalues)
 
@@ -367,41 +363,41 @@ t_test_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
 # Visualize results for significant genera after ANOVA
 
-# paletteer::paletteer_d("ltc::minou")
-# 
-# #00798CFF #D1495BFF #EDAE49FF #66A182FF #2E4057FF #8D96A3FF
+# paletteer::paletteer_d("palettetown::gyarados")
 
 # Add a medication facet label
 glp_med_string <- replicate(4480, "GLP-1-RA")
 
 # Add this string as a column to a data frame
 glp_genera_comparisons <- glp_genera_comparisons %>% 
-  mutate(Medication = glp_med_string)
+  mutate(Medication = glp_med_string) %>% 
+  mutate(Genus = stringr::str_c("GLP-1-RA: ", Genus))
 
 glp_da_plot_am <- glp_genera_comparisons %>% 
-  filter(Genus == "Actinomyces") %>%
+  filter(Genus == "GLP-1-RA: Actinomyces") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#00798CFF") +
+  scale_fill_manual(values = "#6080A0FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
-  facet_grid(Medication~Genus, scales = "free", switch = "y") +
+  facet_grid(~Genus, scales = "free", switch = "y") +
   ggsignif::geom_signif(
     y_position = c(7, 9, 11), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.71", "0.41", "0.38"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "CLR") +
+       y = "") +
+  theme_classic() +
   theme(strip.text.x = element_text(size = 12, face = "italic"),
-        strip.text.y = element_text(size = 12),
+        strip.text.y = element_text(size = 16),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_cs <- glp_genera_comparisons %>% 
-  filter(Genus == "Candidatus Soleaferrea") %>%
+  filter(Genus == "GLP-1-RA: Candidatus Soleaferrea") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#D1495BFF") +
+  scale_fill_manual(values = "#606070FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -413,14 +409,15 @@ glp_da_plot_cs <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
-  theme(strip.text = element_text(size = 12, face = "italic"),
+  theme_classic() +
+  theme(strip.text = element_text(size = 11, face = "italic"),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_fb <- glp_genera_comparisons %>% 
-  filter(Genus == "Fusobacterium") %>%
+  filter(Genus == "GLP-1-RA: Fusobacterium") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#EDAE49FF") +
+  scale_fill_manual(values = "#404068FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -432,14 +429,15 @@ glp_da_plot_fb <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
+  theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_hp <- glp_genera_comparisons %>% 
-  filter(Genus == "Haemophilus") %>%
+  filter(Genus == "GLP-1-RA: Haemophilus") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#66A182FF") +
+  scale_fill_manual(values = "#80A0E0FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -451,14 +449,15 @@ glp_da_plot_hp <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
+  theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_pb <- glp_genera_comparisons %>% 
-  filter(Genus == "Pseudobutyrivibrio") %>%
+  filter(Genus == "GLP-1-RA: Pseudobutyrivibrio") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#2E4057FF") +
+  scale_fill_manual(values = "#F8F8F8FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -470,14 +469,15 @@ glp_da_plot_pb <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
-  theme(strip.text = element_text(size = 12, face = "italic"),
+  theme_classic() +
+  theme(strip.text = element_text(size = 11, face = "italic"),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_vl <- glp_genera_comparisons %>% 
-  filter(Genus == "Veillonella") %>%
+  filter(Genus == "GLP-1-RA: Veillonella") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#8D96A3FF") +
+  scale_fill_manual(values = "#C8C880FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -489,94 +489,54 @@ glp_da_plot_vl <- glp_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
        y = "") +
+  theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
-glp_da <- ggpubr::ggarrange(glp_da_plot_am, glp_da_plot_cs, 
-                            glp_da_plot_fb, glp_da_plot_hp, 
-                            glp_da_plot_pb, glp_da_plot_vl, 
-                            ncol = 6, nrow = 1)
+da_1st_row <- ggpubr::ggarrange(glp_da_plot_am, glp_da_plot_cs, 
+                                glp_da_plot_fb, glp_da_plot_hp, glp_da_plot_pb,
+                                ncol = 5, nrow = 1)
 
 # ___________________________________________________________________________ #
 
-glp_da_plot_rb <- glp_genera_comparisons %>% 
-  filter(Genus == "Romboutsia") %>% 
-  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#00798CFF") +
-  guides(fill = "none") +
-  geom_boxplot() +
-  geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
-  facet_grid(Medication~Genus, scales = "free", switch = "y") +
-  ggsignif::geom_signif(
-    y_position = c(6.2, 7.0, 7.8), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.67", "0.57", "0.11"), tip_length = 0.02) +
-  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(x = "", 
-       y = "CLR") +
-  theme(strip.text.x = element_text(size = 12, face = "italic"),
-        strip.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.y = element_text(size = 12))
-
-glp_da_plot_sl <- glp_genera_comparisons %>% 
-  filter(Genus == "Slackia") %>%
-  #filter(PatientID != "GLP1RA-10") %>% 
-  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#D1495BFF") +
-  guides(fill = "none") +
-  geom_boxplot() +
-  geom_point(position = position_jitter(width = 0.02)) +
-  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
-  facet_wrap(~Genus, scales = "free") +
-  ggsignif::geom_signif(
-    y_position = c(30, 34, 38), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
-    annotation = c("0.84", "0.99", "0.08"), tip_length = 0.02) +
-  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(x = "",
-       y = "") +
-  theme(strip.text = element_text(size = 12, face = "italic"),
-        axis.text.x = element_text(size = 12), 
-        axis.text.y = element_text(size = 12))
-
 # SGLT-2
 
-# paletteer::paletteer_d("Manu::Hoiho")
-# #CABEE9FF #7C7189FF #FAE093FF #D04E59FF #BC8E7DFF #2F3D70FF 
+# paletteer::paletteer_d("palettetown::gyarados")
 
 # Add a medication facet label
 sglt_med_string <- replicate(14896, "SGLT-2")
 
 # Add this string as a column to a data frame
 sglt_genera_comparisons <- sglt_genera_comparisons %>% 
-  mutate(Medication = sglt_med_string)
+  mutate(Medication = sglt_med_string) %>% 
+  mutate(Genus = stringr::str_c("SGLT-2i: ", Genus))
 
 sglt_da_plot_ab <- sglt_genera_comparisons %>% 
-  filter(Genus == "Agathobacter") %>%
+  filter(Genus == "SGLT-2i: Agathobacter") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#CABEE9FF") +
+  scale_fill_manual(values = "#B0C8F8FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
   geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
-  facet_grid(Medication~Genus, scales = "free", switch = "y") +
+  facet_grid(~Genus, scales = "free", switch = "y") +
   ggsignif::geom_signif(
     y_position = c(10, 12, 14), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.24", "0.52", "0.03"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(x = "",
-       y = "CLR") +
+       y = "") +
+  theme_classic() +
   theme(strip.text.x = element_text(size = 12, face = "italic"),
         strip.text.y = element_text(size = 12),
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_am <- sglt_genera_comparisons %>% 
-  filter(Genus == "Akkermansia") %>% 
+  filter(Genus == "SGLT-2i: Akkermansia") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#7C7189FF") +
+  scale_fill_manual(values = "#686858FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -589,14 +549,36 @@ sglt_da_plot_am <- sglt_genera_comparisons %>%
   labs(x = "", 
        y = "") +
   guides(fill = "none") +
+  theme_classic() +
+  theme(strip.text = element_text(size = 12, face = "italic"), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12))
+
+sglt_da_plot_cc <- sglt_genera_comparisons %>% 
+  filter(Genus == "SGLT-2i: Coprococcus 2") %>% 
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#D8E0F0FF") +
+  guides(fill = "none") +
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(8, 10, 12), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.26", "0.33", "0.05"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(x = "", 
+       y = "") +
+  guides(fill = "none") +
+  theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"), 
         axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_dt <- sglt_genera_comparisons %>% 
-  filter(Genus == "DTU089") %>% 
+  filter(Genus == "SGLT-2i: DTU089") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#FAE093FF") +
+  scale_fill_manual(values = "#F8F890FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -609,14 +591,15 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
   labs(x = "", 
        y = "") +
   guides(fill = "none") +
+  theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"), 
         axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_ps <- sglt_genera_comparisons %>% 
-  filter(Genus == "Parasutterella") %>% 
+  filter(Genus == "SGLT-2i: Parasutterella") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#D04E59FF") +
+  scale_fill_manual(values = "#A8B0C0FF") +
   guides(fill = "none") + 
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -628,16 +611,59 @@ sglt_da_plot_ps <- sglt_genera_comparisons %>%
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
   labs(y = "") +
   guides(fill = "none") +
+  theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.title.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+
+sglt_da_plot_rb <- sglt_genera_comparisons %>% 
+  filter(Genus == "SGLT-2i: Romboutsia") %>% 
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#C83030FF") +
+  guides(fill = "none") + 
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(8, 10, 12), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.30", "0.52", "0.02"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(y = "") +
+  guides(fill = "none") +
+  theme_classic() +
+  theme(strip.text = element_text(size = 12, face = "italic"),
+        axis.text.x = element_text(size = 12), 
+        axis.title.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 12))
+
+sglt_da_plot_rcucg <- sglt_genera_comparisons %>% 
+  filter(Genus == "SGLT-2i: Ruminococcaceae UCG-014") %>% 
+  ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
+  scale_fill_manual(values = "#687890FF") +
+  guides(fill = "none") + 
+  geom_boxplot() +
+  geom_point(position = position_jitter(width = 0.02)) +
+  geom_line(aes(group = PatientID), color = "grey", linewidth = 0.2) +
+  facet_wrap(~Genus, scales = "free") +
+  ggsignif::geom_signif(
+    y_position = c(8, 10, 12), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
+    annotation = c("0.08", "0.98", "0.43"), tip_length = 0.02) +
+  scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
+  labs(y = "") +
+  guides(fill = "none") +
+  theme_classic() +
+  theme(strip.text = element_text(size = 10, face = "italic"),
         axis.text.x = element_text(size = 12), 
         axis.title.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 
 sglt_da_plot_tb <- sglt_genera_comparisons %>% 
-  filter(Genus == "Turicibacter") %>% 
+  filter(Genus == "SGLT-2i: Turicibacter") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#BC8E7DFF") +
+  scale_fill_manual(values = "#902000FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -650,15 +676,16 @@ sglt_da_plot_tb <- sglt_genera_comparisons %>%
   labs(x = "",
        y = "") +
   guides(fill = "none") +
+  theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
 
 sglt_da_plot_uc <- sglt_genera_comparisons %>% 
-  filter(Genus == "uncultured bacterium_8") %>% 
+  filter(Genus == "SGLT-2i: uncultured bacterium_8") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#2F3D70FF") +
+  scale_fill_manual(values = "#D08860FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -671,16 +698,23 @@ sglt_da_plot_uc <- sglt_genera_comparisons %>%
   labs(x = "",
        y = "") +
   guides(fill = "none") +
-  theme(strip.text = element_text(size = 12), 
+  theme_classic() +
+  theme(strip.text = element_text(size = 11), 
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
-sglt_da <- ggpubr::ggarrange(sglt_da_plot_ab, sglt_da_plot_am, sglt_da_plot_dt,
-                             sglt_da_plot_ps, sglt_da_plot_tb,
-                             sglt_da_plot_uc,
-                             ncol = 6, nrow = 1)
 
-combined_da_plot <- ggpubr::ggarrange(glp_da, sglt_da, nrow = 2, ncol = 1)
 
-ggsave("combined_da_plot.svg", device = "svg", width = 18, height = 11)
+da_2nd_row <- ggpubr::ggarrange(glp_da_plot_vl, sglt_da_plot_ab, sglt_da_plot_am, 
+                                sglt_da_plot_cc, sglt_da_plot_dt,
+                                ncol = 5, nrow = 1)
+
+da_3rd_row <- ggpubr::ggarrange(sglt_da_plot_cc, sglt_da_plot_rb, sglt_da_plot_rcucg, 
+                                sglt_da_plot_tb, sglt_da_plot_uc,
+                                ncol = 5, nrow = 1)
+
+combined_da_plot <- ggpubr::ggarrange(da_1st_row, da_2nd_row, da_3rd_row,
+                                      nrow = 3, ncol = 1)
+
+ggsave("combined_da_plot.svg", device = "svg", width = 18, height = 15)
 
