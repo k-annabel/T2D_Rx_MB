@@ -87,7 +87,7 @@ tse_sglt <- tse_genus[ , colData(tse_genus)$Medication == "SGLT-2"]
 
 ### Get top 20 genera
 top_taxa_list <- getTopFeatures(tse_genus,
-                                top = 19,
+                                top = 29,
                                 assay.type = "relabundance")
 
 ### Remove "Genus:" string

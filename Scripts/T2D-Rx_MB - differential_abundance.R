@@ -155,7 +155,7 @@ glp_anova_da_results_BH <- glp_da_anova_results %>%
 # Perform t-tests for five significant genera in ANOVA results
 
 ### Initialize empty vector for results
-timepoints <- c("II", "III", "IV")
+timepoints <- c("I", "II", "III", "IV")
 
 ### Pull five significant genera
 glp_anova_genera <- glp_anova_da_results_BH %>% 
@@ -163,58 +163,97 @@ glp_anova_genera <- glp_anova_da_results_BH %>%
   pull(glp_top_taxa)
 
 ### Make a tibble for estimates
-glp_da_ttest_estimates <- tibble(x = 1:7, y = 1:7, z = 1:7) %>% 
-  add_column(glp_anova_genera, .before = "x") %>% 
-  dplyr::rename(II = x,
-                III = y,
-                IV = z) %>% 
-  column_to_rownames(var = "glp_anova_genera")
+glp_da_ttest_estimates <- tibble(a = 1:7, b = 1:7, c = 1:7, d = 1:7, e = 1:7, f = 1:7) %>% 
+  add_column(glp_anova_genera, .before = "a") %>% 
+  dplyr::rename(I_II = a,
+                I_III = b,
+                I_IV = c, 
+                II_III = d,
+                II_IV = e,
+                III_IV = f) %>% 
+  rename(Genus = glp_anova_genera)
 
 ### Make a tibble for p-values
-glp_da_ttest_pvalues <- tibble(x = 1:7, y = 1:7, z = 1:7) %>% 
-  add_column(glp_anova_genera, .before = "x") %>% 
-  dplyr::rename(II = x,
-                III = y,
-                IV = z) %>% 
-  column_to_rownames(var = "glp_anova_genera")
+glp_da_ttest_pvalues <- tibble(a = 1:7, b = 1:7, c = 1:7, d = 1:7, e = 1:7, f = 1:7) %>% 
+  add_column(glp_anova_genera, .before = "a") %>% 
+  dplyr::rename(I_II = a,
+                I_III = b,
+                I_IV = c, 
+                II_III = d,
+                II_IV = e,
+                III_IV = f) %>% 
+  rename(Genus = glp_anova_genera)
 
 
 for (j in 1:length(glp_anova_genera)){
   
+  # Make a data frame for t-tests
   temp_data <- glp_genera_comparisons %>% 
+    pivot_wider(names_from = Timepoint, values_from = clr) %>% 
     filter(Genus == glp_anova_genera[j])
   
-  for (i in 1:length(timepoints)){
-    df_glp <- temp_data %>% 
-      filter(Timepoint %in% c("I", timepoints[i])) %>% 
-      group_by(PatientID) %>% 
-      filter(n() != 1) %>% 
-      arrange(Timepoint, PatientID) %>% 
-      ungroup()
-    
-    da_test_glp_raw <- t.test(clr ~ Timepoint, data = df_glp, paired = TRUE) 
-    
-    da_results_glp <- da_test_glp_raw %>% 
-      broom::tidy()
-    
-    glp_da_ttest_estimates[glp_anova_genera[j], timepoints[i]] <- da_results_glp$estimate
-    glp_da_ttest_pvalues[glp_anova_genera[j], timepoints[i]] <- da_results_glp$p.value
+  # Perform t-test separately for all timepoint comparisons
+  
+  t1 <- t.test(temp_data$I, temp_data$II, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t2 <- t.test(temp_data$I, temp_data$III, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t3 <- t.test(temp_data$I, temp_data$IV, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t4 <- t.test(temp_data$II, temp_data$III, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t5 <- t.test(temp_data$II, temp_data$IV, paired = TRUE) %>% 
+    broom::tidy()
 
-  }
+  t6 <- t.test(temp_data$III, temp_data$IV, paired = TRUE) %>% 
+    broom::tidy()
+  
+  # Extract results
+  estimates_out <- data.frame(Genus = glp_anova_genera[j],
+                              I_II = t1$estimate,
+                              I_III = t2$estimate,
+                              I_IV = t3$estimate, 
+                              II_III = t4$estimate,
+                              II_IV = t5$estimate,
+                              III_IV = t6$estimate)
+  
+  # Extract p-values
+  p_values_out <- data.frame(Genus = glp_anova_genera[j],
+                              I_II = t1$p.value,
+                              I_III = t2$p.value,
+                              I_IV = t3$p.value, 
+                              II_III = t4$p.value,
+                              II_IV = t5$p.value,
+                              III_IV = t6$p.value)
+  
+  # Get the full ouput
+  glp_da_ttest_estimates <- bind_rows(glp_da_ttest_estimates, estimates_out) %>% 
+    tidyr::pivot_longer(cols = 2:7, names_to = "Timepoint", values_to = "Estimate")
+  
+  glp_da_ttest_pvalues <- bind_rows(glp_da_ttest_pvalues, p_values_out) %>% 
+    tidyr::pivot_longer(cols = 2:7, names_to = "Timepoint", values_to = "p_value")
+  
 }
 
-### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-glp_da_estim <- glp_da_ttest_estimates %>% 
-  rownames_to_column(var = "Genus_GLP") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_GLP", values_to = "estimate_GLP")
+# Combine the two data frames
+glp_da_ttest_results <- bind_cols(glp_da_ttest_estimates, glp_da_ttest_pvalues) %>% 
+  select(-c(`Genus...4`, `Timepoint...5`)) %>% 
+  rename(Genus = `Genus...1`, 
+         Timepoint = `Timepoint...2`) %>% 
+  mutate(p_value_BH_GLP = p.adjust(p_value, method = "BH")) %>% 
+  mutate(sig_p = case_when(p_value < 0.05 ~ "*",
+                           p_value < 0.01 ~ "**",
+                           TRUE ~ "ns")) %>% 
+  mutate(sig_p_BH = case_when(p_value_BH_GLP < 0.05 ~ "*",
+                              p_value_BH_GLP < 0.01 ~ "**",
+                              TRUE ~ "ns"))
 
-glp_da_pvalues <- glp_da_ttest_pvalues %>% 
-  rownames_to_column(var = "Genus") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value_GLP") %>% 
-  select(-c(Genus, timepoint))# %>% 
-  #mutate(p_value_BH_GLP = p.adjust(p_value_GLP, method = "BH"))
-
-glp_da_ttest_BH <- bind_cols(glp_da_estim, glp_da_pvalues)
+writexl::write_xlsx(glp_da_ttest_results, "glp_da_ttest_results.xlsx", col_names = TRUE)
+  
 
 # ___________________________________________________________________________ #
 
@@ -296,57 +335,96 @@ sglt_anova_genera <- sglt_anova_da_results_BH %>%
   pull(sglt_top_taxa)
 
 ### Make a tibble for estimates
-sglt_da_ttest_estimates <- tibble(x = 1:9, y = 1:9, z = 1:9) %>% 
-  add_column(sglt_anova_genera, .before = "x") %>% 
-  dplyr::rename(II = x,
-                III = y,
-                IV = z) %>% 
-  column_to_rownames(var = "sglt_anova_genera")
+sglt_da_ttest_estimates <- tibble(a = 1:9, b = 1:9, c = 1:9, d = 1:9, e = 1:9, f = 1:9) %>% 
+  add_column(sglt_anova_genera, .before = "a") %>% 
+  dplyr::rename(I_II = a,
+                I_III = b,
+                I_IV = c, 
+                II_III = d,
+                II_IV = e,
+                III_IV = f) %>% 
+  rename(Genus = sglt_anova_genera)
 
 ### Make a tibble for p-values
-sglt_da_ttest_pvalues <- tibble(x = 1:9, y = 1:9, z = 1:9) %>% 
-  add_column(sglt_anova_genera, .before = "x") %>% 
-  dplyr::rename(II = x,
-                III = y,
-                IV = z) %>% 
-  column_to_rownames(var = "sglt_anova_genera")
+sglt_da_ttest_pvalues <- tibble(a = 1:9, b = 1:9, c = 1:9, d = 1:9, e = 1:9, f = 1:9) %>% 
+  add_column(sglt_anova_genera, .before = "a") %>% 
+  dplyr::rename(I_II = a,
+                I_III = b,
+                I_IV = c, 
+                II_III = d,
+                II_IV = e,
+                III_IV = f) %>% 
+  rename(Genus = sglt_anova_genera)
 
 for (j in 1:length(sglt_anova_genera)){
   
+  # Make a data frame for t-tests
   temp_data <- sglt_genera_comparisons %>% 
+    pivot_wider(names_from = Timepoint, values_from = clr) %>% 
     filter(Genus == sglt_anova_genera[j])
   
-  for (i in 1:length(timepoints)){
-    df_sglt <- temp_data %>% 
-      filter(Timepoint %in% c("I", timepoints[i])) %>% 
-      group_by(PatientID) %>% 
-      filter(n() != 1) %>% 
-      arrange(Timepoint, PatientID) %>% 
-      ungroup()
-    
-    da_test_sglt_raw <- t.test(clr ~ Timepoint, data = df_sglt, paired = TRUE) 
-    
-    da_results_sglt <- da_test_sglt_raw %>% 
-      broom::tidy()
-    
-    sglt_da_ttest_estimates[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$estimate
-    sglt_da_ttest_pvalues[sglt_anova_genera[j], timepoints[i]] <- da_results_sglt$p.value
-    
-  }
+  # Perform t-test separately for all timepoint comparisons
+  
+  t1 <- t.test(temp_data$I, temp_data$II, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t2 <- t.test(temp_data$I, temp_data$III, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t3 <- t.test(temp_data$I, temp_data$IV, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t4 <- t.test(temp_data$II, temp_data$III, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t5 <- t.test(temp_data$II, temp_data$IV, paired = TRUE) %>% 
+    broom::tidy()
+  
+  t6 <- t.test(temp_data$III, temp_data$IV, paired = TRUE) %>% 
+    broom::tidy()
+  
+  # Extract results
+  estimates_out <- data.frame(Genus = sglt_anova_genera[j],
+                              I_II = t1$estimate,
+                              I_III = t2$estimate,
+                              I_IV = t3$estimate, 
+                              II_III = t4$estimate,
+                              II_IV = t5$estimate,
+                              III_IV = t6$estimate)
+  
+  # Extract p-values
+  p_values_out <- data.frame(Genus = sglt_anova_genera[j],
+                             I_II = t1$p.value,
+                             I_III = t2$p.value,
+                             I_IV = t3$p.value, 
+                             II_III = t4$p.value,
+                             II_IV = t5$p.value,
+                             III_IV = t6$p.value)
+  
+  # Get the full ouput
+  sglt_da_ttest_estimates <- bind_rows(sglt_da_ttest_estimates, estimates_out) %>% 
+  slice_tail(n = 9) %>% 
+  tidyr::pivot_longer(cols = 2:7, names_to = "Timepoint", values_to = "Estimate")
+  
+  sglt_da_ttest_pvalues <- bind_rows(sglt_da_ttest_pvalues, p_values_out) %>% 
+  slice_tail(n = 9) %>% 
+  tidyr::pivot_longer(cols = 2:7, names_to = "Timepoint", values_to = "p_value")
+  
 }
 
-### Correct p-values for multiple testing w/ Benjamini-Hochberg method
-sglt_da_estim <- sglt_da_ttest_estimates %>% 
-  rownames_to_column(var = "Genus_SGLT") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint_SGLT", values_to = "estimate_SGLT")
+sglt_da_ttest_results <- bind_cols(sglt_da_ttest_estimates, sglt_da_ttest_pvalues) %>% 
+  select(-c(`Genus...4`, `Timepoint...5`)) %>% 
+  rename(Genus = `Genus...1`, 
+         Timepoint = `Timepoint...2`) %>% 
+  mutate(p_value_BH_SGLT = p.adjust(p_value, method = "BH")) %>% 
+  mutate(sig_p = case_when(p_value < 0.05 ~ "*",
+                           p_value < 0.01 ~ "**",
+                           TRUE ~ "ns")) %>% 
+  mutate(sig_p_BH = case_when(p_value_BH_SGLT < 0.05 ~ "*",
+                              p_value_BH_SGLT < 0.01 ~ "**",
+                              TRUE ~ "ns"))
 
-
-sglt_da_pvalues <- sglt_da_ttest_pvalues %>% 
-  rownames_to_column(var = "Genus") %>% 
-  pivot_longer(cols = 2:4, names_to = "timepoint", values_to = "p_value_SGLT") %>% 
-  select(-c(Genus, timepoint))
-
-sglt_da_ttest_BH <- bind_cols(sglt_da_estim, sglt_da_pvalues)
+writexl::write_xlsx(sglt_da_ttest_results, "sglt_da_ttest_results.xlsx", col_names = TRUE)
 
 # ___________________________________________________________________________ #
 
@@ -361,6 +439,35 @@ t_test_da_results <- bind_cols(glp_da_ttest_BH, sglt_da_ttest_BH)
 
 # ___________________________________________________________________________ #
 
+
+# T-tests for all timepoints
+
+glp_test <- glp_genera_comparisons %>% 
+  filter(Genus %in% glp_anova_genera) %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  complete(PatientID, Genus) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "clr") %>% 
+  #group_by(PatientID) %>% 
+ # filter(n() != 1) %>% 
+#  arrange(Timepoint, PatientID) %>% 
+#  ungroup() %>% 
+  group_by(Genus) %>% 
+  t_test(clr ~ Timepoint, comparisons = tp_comparisons, paired = FALSE, p.adjust.method = "BH")
+
+sglt_test <- sglt_genera_comparisons %>% 
+  filter(Genus %in% sglt_anova_genera) %>% 
+  pivot_wider(names_from = Timepoint, values_from = clr) %>% 
+  filter(complete.cases(.)) %>% 
+  pivot_longer(cols = 3:6, names_to = "Timepoint", values_to = "clr") %>% 
+  #group_by(PatientID) %>% 
+  #filter(n() != 1) %>% 
+  #arrange(Timepoint, PatientID) %>% 
+  #ungroup() %>% 
+  group_by(Genus) %>% 
+  t_test(clr ~ Timepoint, comparisons = tp_comparisons, paired = TRUE, p.adjust.method = "BH")
+
+# ___________________________________________________________________________ #
+
 # Visualize results for significant genera after ANOVA
 
 # paletteer::paletteer_d("palettetown::gyarados")
@@ -370,13 +477,12 @@ glp_med_string <- replicate(4480, "GLP-1-RA")
 
 # Add this string as a column to a data frame
 glp_genera_comparisons <- glp_genera_comparisons %>% 
-  mutate(Medication = glp_med_string) %>% 
-  mutate(Genus = stringr::str_c("GLP-1-RA: ", Genus))
+  mutate(Medication = glp_med_string)
 
 glp_da_plot_am <- glp_genera_comparisons %>% 
-  filter(Genus == "GLP-1-RA: Actinomyces") %>%
+  filter(Genus == "Actinomyces") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#6080A0FF") +
+  scale_fill_manual(values = "#7AD151FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -395,9 +501,9 @@ glp_da_plot_am <- glp_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_cs <- glp_genera_comparisons %>% 
-  filter(Genus == "GLP-1-RA: Candidatus Soleaferrea") %>%
+  filter(Genus == "Candidatus Soleaferrea") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#606070FF") +
+  scale_fill_manual(values = "#7AD151FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -415,9 +521,9 @@ glp_da_plot_cs <- glp_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_fb <- glp_genera_comparisons %>% 
-  filter(Genus == "GLP-1-RA: Fusobacterium") %>%
+  filter(Genus == "Fusobacterium") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#404068FF") +
+  scale_fill_manual(values = "#7AD151FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -435,9 +541,9 @@ glp_da_plot_fb <- glp_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_hp <- glp_genera_comparisons %>% 
-  filter(Genus == "GLP-1-RA: Haemophilus") %>%
+  filter(Genus == "Haemophilus") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#80A0E0FF") +
+  scale_fill_manual(values = "#7AD151FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -455,9 +561,9 @@ glp_da_plot_hp <- glp_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_pb <- glp_genera_comparisons %>% 
-  filter(Genus == "GLP-1-RA: Pseudobutyrivibrio") %>%
+  filter(Genus == "Pseudobutyrivibrio") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#F8F8F8FF") +
+  scale_fill_manual(values = "#7AD151FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -475,9 +581,9 @@ glp_da_plot_pb <- glp_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 glp_da_plot_vl <- glp_genera_comparisons %>% 
-  filter(Genus == "GLP-1-RA: Veillonella") %>%
+  filter(Genus == "Veillonella") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#C8C880FF") +
+  scale_fill_manual(values = "#7AD151FF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -494,9 +600,9 @@ glp_da_plot_vl <- glp_genera_comparisons %>%
         axis.text.x = element_text(size = 12), 
         axis.text.y = element_text(size = 12))
 
-da_1st_row <- ggpubr::ggarrange(glp_da_plot_am, glp_da_plot_cs, 
-                                glp_da_plot_fb, glp_da_plot_hp, glp_da_plot_pb,
-                                ncol = 5, nrow = 1)
+da_glp <- ggpubr::ggarrange(glp_da_plot_am, glp_da_plot_cs, glp_da_plot_fb, 
+                            glp_da_plot_hp, glp_da_plot_pb, glp_da_plot_vl, 
+                            ncol = 2, nrow = 3)
 
 # ___________________________________________________________________________ #
 
@@ -509,13 +615,12 @@ sglt_med_string <- replicate(14896, "SGLT-2")
 
 # Add this string as a column to a data frame
 sglt_genera_comparisons <- sglt_genera_comparisons %>% 
-  mutate(Medication = sglt_med_string) %>% 
-  mutate(Genus = stringr::str_c("SGLT-2i: ", Genus))
+  mutate(Medication = sglt_med_string)
 
 sglt_da_plot_ab <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: Agathobacter") %>%
+  filter(Genus == "Agathobacter") %>%
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#B0C8F8FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -534,9 +639,9 @@ sglt_da_plot_ab <- sglt_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_am <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: Akkermansia") %>% 
+  filter(Genus == "Akkermansia") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#686858FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -555,9 +660,9 @@ sglt_da_plot_am <- sglt_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_cc <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: Coprococcus 2") %>% 
+  filter(Genus == "Coprococcus 2") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#D8E0F0FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -576,9 +681,9 @@ sglt_da_plot_cc <- sglt_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_dt <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: DTU089") %>% 
+  filter(Genus == "DTU089") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#F8F890FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -597,9 +702,9 @@ sglt_da_plot_dt <- sglt_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_ps <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: Parasutterella") %>% 
+  filter(Genus == "Parasutterella") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#A8B0C0FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") + 
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -609,7 +714,8 @@ sglt_da_plot_ps <- sglt_genera_comparisons %>%
     y_position = c(8, 10, 12), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.92", "0.30", "0.08"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(y = "") +
+  labs(x = "",
+       y = "") +
   guides(fill = "none") +
   theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"),
@@ -618,9 +724,9 @@ sglt_da_plot_ps <- sglt_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_rb <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: Romboutsia") %>% 
+  filter(Genus == "Romboutsia") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#C83030FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") + 
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -630,7 +736,8 @@ sglt_da_plot_rb <- sglt_genera_comparisons %>%
     y_position = c(8, 10, 12), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.30", "0.52", "0.02"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(y = "") +
+  labs(x = "", 
+       y = "") +
   guides(fill = "none") +
   theme_classic() +
   theme(strip.text = element_text(size = 12, face = "italic"),
@@ -639,9 +746,9 @@ sglt_da_plot_rb <- sglt_genera_comparisons %>%
         axis.text.y = element_text(size = 12))
 
 sglt_da_plot_rcucg <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: Ruminococcaceae UCG-014") %>% 
+  filter(Genus == "Ruminococcaceae UCG-014") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#687890FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") + 
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -651,7 +758,8 @@ sglt_da_plot_rcucg <- sglt_genera_comparisons %>%
     y_position = c(8, 10, 12), xmin = c(1, 1, 1), xmax = c(2, 3, 4),
     annotation = c("0.08", "0.98", "0.43"), tip_length = 0.02) +
   scale_x_discrete(labels = c("BL", "M1", "M3", "M12")) +
-  labs(y = "") +
+  labs(x = "", 
+       y = "") +
   guides(fill = "none") +
   theme_classic() +
   theme(strip.text = element_text(size = 10, face = "italic"),
@@ -661,9 +769,9 @@ sglt_da_plot_rcucg <- sglt_genera_comparisons %>%
 
 
 sglt_da_plot_tb <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: Turicibacter") %>% 
+  filter(Genus == "Turicibacter") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#902000FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -683,9 +791,9 @@ sglt_da_plot_tb <- sglt_genera_comparisons %>%
 
 
 sglt_da_plot_uc <- sglt_genera_comparisons %>% 
-  filter(Genus == "SGLT-2i: uncultured bacterium_8") %>% 
+  filter(Genus == "uncultured bacterium_8") %>% 
   ggplot(aes(x = Timepoint, y = clr, fill = Genus)) +
-  scale_fill_manual(values = "#D08860FF") +
+  scale_fill_manual(values = "#669ABFFF") +
   guides(fill = "none") +
   geom_boxplot() +
   geom_point(position = position_jitter(width = 0.02)) +
@@ -705,16 +813,12 @@ sglt_da_plot_uc <- sglt_genera_comparisons %>%
 
 
 
-da_2nd_row <- ggpubr::ggarrange(glp_da_plot_vl, sglt_da_plot_ab, sglt_da_plot_am, 
-                                sglt_da_plot_cc, sglt_da_plot_dt,
-                                ncol = 5, nrow = 1)
+da_sglt <- ggpubr::ggarrange(sglt_da_plot_ab, sglt_da_plot_am, sglt_da_plot_cc, 
+                             sglt_da_plot_dt, sglt_da_plot_ps, sglt_da_plot_rb, 
+                             sglt_da_plot_rcucg, sglt_da_plot_tb, sglt_da_plot_uc, 
+                             ncol = 3, nrow = 3)
 
-da_3rd_row <- ggpubr::ggarrange(sglt_da_plot_cc, sglt_da_plot_rb, sglt_da_plot_rcucg, 
-                                sglt_da_plot_tb, sglt_da_plot_uc,
-                                ncol = 5, nrow = 1)
+combined_da_plot <- ggpubr::ggarrange(da_glp, da_sglt, nrow = 1, ncol = 2)
 
-combined_da_plot <- ggpubr::ggarrange(da_1st_row, da_2nd_row, da_3rd_row,
-                                      nrow = 3, ncol = 1)
-
-ggsave("combined_da_plot.svg", device = "svg", width = 18, height = 15)
+ggsave("combined_da_plot.svg", width = 18, height = 15)
 
